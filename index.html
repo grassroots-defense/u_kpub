@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Grassroots Defense ver.4.0 — 草の根防衛 2.5D</title>
+  <title>Grassroots Defense ver.4.1 — 草の根防衛 2.5D</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -120,7 +120,7 @@
   </style>
 </head>
 <body>
-  <h1>Grassroots Defense <span style="font-size:0.75em;opacity:.7">ver.4.0 · 2.5D</span></h1>
+  <h1>Grassroots Defense <span style="font-size:0.75em;opacity:.7">ver.4.1 · 2.5D</span></h1>
   <p class="sub">草の根の知恵で、環境破壊を跳ね返す — 奥行きのある大地</p>
 
   <div id="wrap">
@@ -183,7 +183,7 @@
     </div>
   </div>
 
-  <p class="foot">スペースインベーダー風 · ver.4.0 2.5D · ユニットX · WAVE1〜8 · Pでポーズ</p>
+  <p class="foot">スペースインベーダー風 · ver.4.1 2.5D · ユニットX · WAVE1〜8 · Pでポーズ</p>
 
   <script>
 (() => {
@@ -285,6 +285,14 @@
     recoil: 0,
     /** 反動の速度（戻りの振動用） */
     recoilVel: 0,
+    /** 被弾ぐらつき：傾き（ラジアン、正=右） */
+    tilt: 0,
+    /** 傾き残りフレーム（無敵点滅内で 0 に） */
+    tiltT: 0,
+    /** 傾き総フレーム */
+    tiltTMax: 0,
+    /** 傾き方向 -1|1 */
+    tiltDir: 1,
   };
 
   /** ホバー浮遊＋射撃反動を反映した自機 Y */
@@ -308,6 +316,47 @@
       player.recoil = 0;
       player.recoilVel = 0;
     }
+  }
+
+  /** 被弾源 X から左右傾きをキック（中央帯はランダム）。描画専用 */
+  function applyHitTilt(hitX) {
+    const px = player.x + player.w / 2;
+    const dead = player.w * 0.22;
+    let dir;
+    if (hitX == null || !isFinite(hitX)) {
+      dir = Math.random() < 0.5 ? -1 : 1;
+    } else if (hitX > px + dead) {
+      dir = 1; // 右から → 右傾き
+    } else if (hitX < px - dead) {
+      dir = -1; // 左から → 左傾き
+    } else {
+      dir = Math.random() < 0.5 ? -1 : 1; // 真ん中
+    }
+    player.tiltDir = dir;
+    // ピーク約20°。持続は現在の無敵フレーム以内（短め cap でサクッと完結）
+    const inv = invuln > 0 ? invuln : 30;
+    const frames = Math.max(16, Math.min(inv, 36));
+    player.tiltT = frames;
+    player.tiltTMax = frames;
+    player.tilt = dir * (20 * Math.PI / 180);
+    sfxHitRattle();
+  }
+
+  /** 被弾傾き：減衰＋短いガタつき。tiltT が 0 で必ず直立（無敵点滅内に完結） */
+  function updatePlayerTilt() {
+    if (player.tiltT <= 0) {
+      player.tilt = 0;
+      return;
+    }
+    player.tiltT--;
+    const max = player.tiltTMax || 1;
+    const u = 1 - player.tiltT / max; // 0→1
+    const kick = 20 * Math.PI / 180;
+    // 指数減衰 × 短い振動 → 序盤大きく、終端で 0
+    const damp = Math.exp(-3.6 * u);
+    const wobble = Math.cos(u * Math.PI * 2.4);
+    player.tilt = player.tiltDir * kick * damp * (0.5 + 0.5 * wobble);
+    if (player.tiltT <= 0) player.tilt = 0;
   }
 
   /** 弾発射時の反動キック（下に少し沈む） */
@@ -349,12 +398,16 @@
   let giantSmog = null;
   /** スモッグ霧のスムーズ濃度（急なオン/オフ防止） */
   let smogFogAlphaSmooth = 0;
+  /** 巨大霧の空間広がり 0→1（まだら→全面）。消滅後は強度のみ alpha で減衰 */
+  let smogFogSpread = 0;
   let ufoTimer = 0;
   let smogTimer = 0;
   let wave1SmogDone = false;
   let score = 0;
   let seeds = 0;
   let wisdom = 0;
+  /** 都市化ピーク知恵（一度上がったらラン中は戻さない） */
+  let urbanPeakWisdom = 0;
   let wave = 1;
   let dir = 1;
   let fireTimer = 0;
@@ -369,10 +422,20 @@
   let paused = false;
   const LOSE_HINTS = [
     "アイテムは地上に転がってから取りにいけ。",
-    "地上に転がるのはアイテム だけ。",
-    "敵の攻撃は地上では転がらない。",
-    "アイテムは取るまで消えずに 残る。",
+    "地上に転がるのはアイテムだけ。敵弾は転がらない。",
+    "アイテムはしばらくすると消える。急いで取れ。",
+    "連射・三連は、上を横切る敵を倒したときだけ落ちる。",
+    "速射・三連の効果は 約6〜7秒。タイミングを逃すな。",
+    "シールドは耐久制。薄く点滅したらあと少し。",
+    "知恵の実で都市が育つ。一度発展したら戻らない。",
+    "スモッグが多いと画面が霞む。撃って晴れ。",
+    // 追加（既存は残す）
+    "連射・三連弾は上を横切る敵を倒したときだけ落ちる。効果は短い。",
+    "知恵の実を集めると都市が徐々に発展する。一度できたら戻らない。",
+    "スモッグが多いと画面が霞む。倒すと少し晴れる。",
   ];
+  /** 敗北ヒントの順番インデックス（敗北のたびに次へ） */
+  let loseHintIndex = 0;
   /** 3点射撃取得：両サイド残像→重なりスパーク */
   let tripleFx = null;
 
@@ -618,6 +681,12 @@
     setTimeout(() => beep(880, 0.14, "triangle", 0.05), 140);
   }
   function sfxHurt() { beep(90, 0.15, "square", 0.08, 0.5); }
+  /** 被弾：短い強めの「ガン！」衝撃音 */
+  function sfxHitRattle() {
+    beep(70, 0.09, "square", 0.13, 0.32);
+    beep(48, 0.11, "sawtooth", 0.11, 0.38);
+    beep(160, 0.045, "square", 0.08, 0.55);
+  }
   function sfxBarrier() { beep(300, 0.08, "triangle", 0.07, 1.5); }
   /** 放射能：ウィンウィンウィンウィン */
   function sfxRadiation() {
@@ -871,14 +940,32 @@
     return `rgb(${r},${g},${bl})`;
   }
 
-  // —— 描画キャッシュ（緑化が変わったときだけ再構築）——
+  // —— 描画キャッシュ（緑化・都市化が変わったとき再構築）——
   let _visStep = -1;
+  let _urbanStep = -1;
   /** @type {HTMLCanvasElement|null} */
   let _skyMtnCache = null;
   /** @type {HTMLCanvasElement|null} */
   let _groundBaseCache = null;
   function visStepOf(u) {
     return (u * 12 + 0.5) | 0; // 約 0.083 刻み
+  }
+  /** 知恵の実由来の都市化度 0..1（約20個でMax・ピーク参照で永続） */
+  function urbanProgressOf() {
+    return Math.min(1, urbanPeakWisdom / 20);
+  }
+  /** HUD用段階: 0なし / 1集落 / 2橋ダム / 3塔（進捗の三等分） */
+  function urbanStageOf() {
+    const p = urbanProgressOf();
+    if (p <= 0) return 0;
+    if (p < 1 / 3) return 1;
+    if (p < 2 / 3) return 2;
+    return 3;
+  }
+  /** サイトごとの成長 0..1（unlock 後、約6個でフル） */
+  function urbanSiteGrow(unlockAt) {
+    if (urbanPeakWisdom <= unlockAt) return 0;
+    return Math.min(1, (urbanPeakWisdom - unlockAt) / 6);
   }
   function makeLayerCanvas() {
     const c = document.createElement("canvas");
@@ -888,12 +975,14 @@
   }
   function invalidateSceneCaches() {
     _visStep = -1;
+    _urbanStep = -1;
   }
 
   function resetGame() {
     score = 0;
     seeds = 0;
     wisdom = 0;
+    urbanPeakWisdom = 0;
     wave = 1;
     greenProgress = 0;
     invalidateSceneCaches();
@@ -920,6 +1009,10 @@
     player.track = 0;
     player.recoil = 0;
     player.recoilVel = 0;
+    player.tilt = 0;
+    player.tiltT = 0;
+    player.tiltTMax = 0;
+    player.tiltDir = 1;
     invuln = 0;
     freezeT = 0;
     emFlashT = 0;
@@ -942,6 +1035,7 @@
     ufo = null;
     giantSmog = null;
     smogFogAlphaSmooth = 0;
+    smogFogSpread = 0;
     ufoTimer = 280 + Math.random() * 160;
     smogTimer = 90;
     wave1SmogDone = false;
@@ -995,6 +1089,7 @@
       const et = ETYPES[e.type];
       if (et && et.kind === "smog") smogCount += 1;
     }
+    smogFogSpread = 0;
     if (smogCount <= 0) {
       smogFogAlphaSmooth = 0;
     } else {
@@ -1020,6 +1115,80 @@
         max: 28,
         color,
         s: 2 + Math.random() * 2,
+      });
+    }
+  }
+
+  /** 被弾専用の派手な火花（汎用 burst は触らない） */
+  function spawnHitSparks(x, y, tint) {
+    const room = Math.max(0, 80 - particles.length);
+    if (room <= 0) return;
+    const shield = tint === "shield";
+    const palette = shield
+      ? ["#e8f8ff", "#80d8f0", "#a0e8ff", "#60b0e0", "#ffffff"]
+      : tint === "purple"
+        ? ["#f0d0ff", "#d080f0", "#ffffff", "#b060d0", "#ffe8a0"]
+        : ["#ffffff", "#ffe8a0", "#ffd060", "#ff9030", "#ff6020", "#ffc040"];
+    const nCore = Math.min(8, room);
+    const nSpark = Math.min(18, Math.max(0, room - nCore));
+    // 中心の明るいコア
+    for (let i = 0; i < nCore; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const sp = 1.2 + Math.random() * 3.5;
+      particles.push({
+        x: x + (Math.random() - 0.5) * 4,
+        y: y + (Math.random() - 0.5) * 4,
+        vx: Math.cos(ang) * sp,
+        vy: Math.sin(ang) * sp - 0.8,
+        life: 14 + Math.random() * 10,
+        max: 28,
+        color: palette[i % 3],
+        s: 3 + Math.random() * 3,
+      });
+    }
+    // 外側へ飛ぶ火花
+    for (let i = 0; i < nSpark; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const sp = 2.8 + Math.random() * 5.5;
+      particles.push({
+        x: x + (Math.random() - 0.5) * 6,
+        y: y + (Math.random() - 0.5) * 6,
+        vx: Math.cos(ang) * sp,
+        vy: Math.sin(ang) * sp - 1.2,
+        life: 18 + Math.random() * 16,
+        max: 36,
+        color: palette[2 + (i % (palette.length - 2))],
+        s: 1.5 + Math.random() * 2.5,
+      });
+    }
+  }
+
+  /** 残機ラスト1：自機からもくもく黒煙 */
+  function emitCriticalSmoke() {
+    if (player.lives !== 1) return;
+    if ((t & 1) !== 0) return; // 1フレームおき
+    const room = Math.max(0, 80 - particles.length);
+    if (room <= 0) return;
+    // 同時煙が多すぎないよう抑える
+    let smokeN = 0;
+    for (let i = 0; i < particles.length; i++) {
+      if (particles[i].kind === "smoke") smokeN++;
+    }
+    if (smokeN >= 22) return;
+    const n = Math.min(room, 1 + (Math.random() < 0.35 ? 1 : 0));
+    const cx = player.x + player.w / 2;
+    const cy = player.y + player.h * 0.35;
+    for (let i = 0; i < n; i++) {
+      particles.push({
+        kind: "smoke",
+        x: cx + (Math.random() - 0.5) * 14,
+        y: cy + (Math.random() - 0.5) * 6,
+        vx: (Math.random() - 0.5) * 0.55,
+        vy: -0.45 - Math.random() * 0.55,
+        life: 45 + Math.random() * 30,
+        max: 75,
+        color: Math.random() < 0.35 ? "#2a2a2a" : Math.random() < 0.5 ? "#1a1a1a" : "#3a3028",
+        s: 4 + Math.random() * 5,
       });
     }
   }
@@ -1088,6 +1257,7 @@
 
   function collectWisdom() {
     wisdom++;
+    urbanPeakWisdom = Math.max(urbanPeakWisdom, wisdom);
     score += 50;
     // 木のピクトは出さず、花・芽のみ
     const kind = Math.random() < 0.55 ? "flower" : "sprout";
@@ -1099,6 +1269,8 @@
     });
     if (flora.length > 16) flora.shift();
     syncVineGrowth();
+    // 街シルエットの都市化段階を更新
+    invalidateSceneCaches();
     showToast("📘 " + WISDOM_LINES[(wisdom - 1) % WISDOM_LINES.length]);
     sfxItem();
   }
@@ -1342,13 +1514,23 @@
       spawnDrop(
         ufo.x + ufo.w / 2 - 7 + (Math.random() - 0.5) * 48,
         ufo.y + ufo.h,
-        Math.random() < 0.45 ? "wisdom" : "seed",
+        Math.random() < 0.5 ? "wisdom" : "seed",
         (Math.random() - 0.5) * 2.2,
         1.4 + Math.random() * 0.8
       );
     }
     // 上を横切る巨大廃棄物 → 連射のみ（通常より少し遅い）
     spawnDrop(ufo.x + ufo.w / 2 - 8, ufo.y + ufo.h, "rapid", 0, 1.0);
+    // たまにスパナ（土に埋まる応急修理アイテム）
+    if (Math.random() < 0.28) {
+      spawnDrop(
+        ufo.x + ufo.w / 2 - 7 + (Math.random() - 0.5) * 20,
+        ufo.y + ufo.h,
+        "spanner",
+        (Math.random() - 0.5) * 1.2,
+        1.1
+      );
+    }
     // 危険な鋭利デブリ（通常アイテムに加えて落下・接触ダメージ）
     spawnUfoDebris(ux, uy);
     showToast("巨大廃棄物 破壊！ ドロップ ×" + n + " + ⚡速射 ⚠破片注意");
@@ -1398,8 +1580,9 @@
     if (Math.random() < 0.26) {
       const r = Math.random();
       let type = "seed";
+      // 種と知恵を同率（種比率維持→雨頻度も維持）。シールド枠のみ縮小
       if (r < 0.42) type = "seed";
-      else if (r < 0.72) type = "wisdom";
+      else if (r < 0.84) type = "wisdom";
       else type = "shield";
       spawnDrop(e.x + e.w / 2 - 7, e.y + e.h / 2, type, (Math.random() - 0.5) * 2.2, 1.3 + Math.random() * 0.6);
     }
@@ -1409,7 +1592,8 @@
   function spawnDrop(x, y, type, vx, vy, size) {
     const power = ["shield", "barrier", "rapid", "firerate", "triple", "side", "sideshot", "atk"].includes(type);
     const isWeaponPower = type === "rapid" || type === "firerate" || type === "triple" || type === "side" || type === "sideshot";
-    const s = size || (power ? 16 : 14);
+    const isSpanner = type === "spanner";
+    const s = size || (power || isSpanner ? 16 : 14);
     let px = Math.max(4, Math.min(W - 4 - s, x));
     let h = typeof vx === "number" ? vx : 0;
     if (Math.abs(h) < 0.2) h = (Math.random() < 0.5 ? -1 : 1) * (0.35 + Math.random() * 0.55);
@@ -1418,15 +1602,39 @@
     if (isWeaponPower) {
       fall = typeof vy === "number" ? Math.max(0.85, Math.abs(vy) * 0.75) : 1.05;
       h *= 0.55;
+    } else if (isSpanner) {
+      fall = typeof vy === "number" ? Math.max(1.0, Math.abs(vy)) : 1.2;
+      h *= 0.7;
     } else {
       fall = Math.max(1.4, typeof vy === "number" ? Math.abs(vy) : 1.5);
     }
+    // 地上残留（約60fps想定）: 通常5秒 / スパナ3秒 / スペシャル10秒
+    const groundMax = isSpanner ? 180 : isWeaponPower ? 600 : 300;
     drops.push({
       x: px, y: Math.max(42, y), w: s, h: s, type,
       vx: h, vy: fall, bob: Math.random() * Math.PI * 2, life: null, bounces: 0,
       slowFall: isWeaponPower,
       spark: isWeaponPower ? 0 : null,
+      // スパナ：地上でバウンドせず徐々に土へ埋まる
+      sink: 0,
+      grounded: false,
+      // 接地後の残りフレーム（初接地からカウント）
+      groundT: 0,
+      groundMax,
+      hasLanded: false,
     });
+  }
+
+  /** スパナ：ラスト1（黒煙中）だけ残機+1。それ以外は効果なし */
+  function collectSpanner() {
+    if (player.lives === 1) {
+      player.lives = 2;
+      showToast("🔧 応急修理！ 残機+1");
+      sfxPower();
+      burst(player.x + player.w / 2, player.y + player.h * 0.4, "#c0c8d0", 10);
+      burst(player.x + player.w / 2, player.y + player.h * 0.4, "#80c060", 6);
+    }
+    // lives !== 1：特に効果なし（スコア・トーストなし）
   }
 
   function updateDrops() {
@@ -1443,6 +1651,56 @@
     for (let i = drops.length - 1; i >= 0; i--) {
       const d = drops[i];
       d.bob = (d.bob || 0) + 0.08;
+
+      // —— スパナ：落下→接地→土に埋まって消滅（地上約3秒）——
+      if (d.type === "spanner") {
+        const floor = GROUND_Y - d.h - 2;
+        const gMax = d.groundMax || 180;
+        if (!d.grounded) {
+          d.vy += GRAV;
+          if (d.vy > MAX_FALL) d.vy = MAX_FALL;
+          d.x += d.vx;
+          d.y += d.vy;
+          if (d.x <= margin) {
+            d.x = margin;
+            d.vx = Math.abs(d.vx) * 0.5;
+          } else if (d.x + d.w >= W - margin) {
+            d.x = W - margin - d.w;
+            d.vx = -Math.abs(d.vx) * 0.5;
+          }
+          if (d.y >= floor) {
+            d.y = floor;
+            d.vx *= 0.4;
+            d.vy = 0;
+            d.grounded = true;
+            d.hasLanded = true;
+            d.sink = 0;
+            d.groundT = 0;
+          }
+        } else {
+          d.groundT = (d.groundT || 0) + 1;
+          d.sink = Math.min(1, d.groundT / gMax);
+          d.vx *= 0.92;
+          d.x += d.vx;
+          if (d.x <= margin) d.x = margin;
+          if (d.x + d.w >= W - margin) d.x = W - margin - d.w;
+          d.y = floor + d.sink * (d.h + 6);
+          if (d.groundT >= gMax) {
+            drops.splice(i, 1);
+            continue;
+          }
+        }
+        // ほぼ埋まったら取得不可
+        if (d.sink < 0.82 && hitRect(
+          { x: d.x, y: d.y, w: d.w, h: Math.max(4, d.h * (1 - d.sink * 0.7)) },
+          player
+        )) {
+          collectSpanner(); // lives===1 のみ効果。それ以外は何もしない
+          drops.splice(i, 1);
+        }
+        continue;
+      }
+
       // 連射・三連：通常より少し遅い程度
       const grav = d.slowFall ? 0.09 : GRAV;
       const maxFall = d.slowFall ? 2.6 : MAX_FALL;
@@ -1472,6 +1730,10 @@
       const floor = GROUND_Y - d.h - 2;
       if ((prevY <= floor && d.y >= floor) || d.y >= floor) {
         d.y = floor;
+        if (!d.hasLanded) {
+          d.hasLanded = true;
+          d.groundT = 0;
+        }
         d.bounces = (d.bounces || 0) + 1;
         const decay = Math.max(0.6, 1 - d.bounces * 0.035);
         if (d.slowFall) {
@@ -1482,6 +1744,15 @@
           d.vy = -(2.3 + Math.random() * 0.65) * decay;
           d.vx += (Math.random() - 0.5) * 0.9;
           if (Math.abs(d.vx) < 0.25) d.vx = (Math.random() < 0.5 ? -1 : 1) * 0.55;
+        }
+      }
+
+      // 地上残留タイマー（初接地から：通常≈5秒 / スペシャル≈10秒）
+      if (d.hasLanded) {
+        d.groundT = (d.groundT || 0) + 1;
+        if (d.groundT >= (d.groundMax || 300)) {
+          drops.splice(i, 1);
+          continue;
         }
       }
 
@@ -1521,7 +1792,7 @@
       )) {
         debris.splice(i, 1);
         burst(d.x, d.y, "#e05030", 8);
-        if (hurtPlayer()) return;
+        if (hurtPlayer({ hitX: d.x })) return;
       }
     }
   }
@@ -1536,7 +1807,8 @@
         player.shield = 0;
         player.shieldFlashT = 10;
         invuln = 45;
-        burst(player.x + player.w / 2, player.y, "#80d8f0", 16);
+        // シールド中は自機傾きなし（バリア被弾演出のみ）
+        spawnHitSparks(player.x + player.w / 2, player.y + player.h * 0.35, "shield");
         showToast("🛡 ICBM爆風！ シールド消滅");
         sfxBarrier();
         return false;
@@ -1544,7 +1816,8 @@
       player.shield--;
       player.shieldFlashT = 12; // 面が一瞬白く光る
       invuln = 35;
-      burst(player.x + player.w / 2, player.y, "#80d8f0", 10);
+      // シールド中は自機傾きなし（バリア被弾演出のみ）
+      spawnHitSparks(player.x + player.w / 2, player.y + player.h * 0.35, "shield");
       if (player.shield <= 0) {
         showToast("🛡 シールド消滅");
       } else {
@@ -1556,7 +1829,8 @@
 
     if (fromIcbm) {
       player.lives = 0;
-      burst(player.x + player.w / 2, player.y, "#e08040", 22);
+      applyHitTilt(opts.hitX);
+      spawnHitSparks(player.x + player.w / 2, player.y + player.h * 0.35, null);
       sfxHurt();
       sfxIcbmBoom();
       gameOver(false);
@@ -1565,8 +1839,13 @@
 
     player.lives--;
     invuln = 70;
+    applyHitTilt(opts.hitX);
     applyGroundHit("被弾！");
-    burst(player.x + player.w / 2, player.y, statusTint === "purple" ? "#b060d0" : "#e08060", 12);
+    spawnHitSparks(
+      player.x + player.w / 2,
+      player.y + player.h * 0.35,
+      statusTint === "purple" ? "purple" : null
+    );
     if (player.lives <= 0) {
       gameOver(false);
       return true;
@@ -1718,7 +1997,7 @@
         if (onLine) {
           groundBolt.hitDone = true;
           showToast("⚡ 稲妻直撃！");
-          if (hurtPlayer()) return;
+          if (hurtPlayer({ hitX: boltX })) return;
         }
       }
       if (groundBolt.life <= 0) groundBolt = null;
@@ -1835,7 +2114,7 @@
           const ey = m.y + m.h / 2;
           explosions.push({ x: ex, y: ey, r: 55, life: 24, max: 24, kind: "icbm", maxR: 55 });
           sfxIcbmBoom();
-          if (hurtPlayer({ icbm: true })) return;
+          if (hurtPlayer({ icbm: true, hitX: ex })) return;
           continue;
         }
 
@@ -1852,7 +2131,7 @@
           const dx = px - ex;
           const dy = py - ey;
           if (dx * dx + dy * dy < 72 * 72) {
-            if (hurtPlayer({ icbm: true })) return;
+            if (hurtPlayer({ icbm: true, hitX: ex })) return;
           }
           continue;
         }
@@ -1936,6 +2215,7 @@
 
     // ホバー浮遊 + 射撃反動（前フレーム分を減衰してから位置確定）
     updatePlayerRecoil();
+    updatePlayerTilt();
     player.y = playerBaseY();
 
     const L = keys["ArrowLeft"] || keys["KeyA"];
@@ -2097,7 +2377,7 @@
         };
         if (hitRect(b, box)) {
           enemyBullets.splice(i, 1);
-          if (hurtPlayer()) return;
+          if (hurtPlayer({ hitX: b.x + b.w / 2 })) return;
           continue;
         }
       }
@@ -2115,16 +2395,24 @@
 
       if (invuln <= 0 && hitRect(b, player)) {
         enemyBullets.splice(i, 1);
-        if (hurtPlayer()) return;
+        if (hurtPlayer({ hitX: b.x + b.w / 2 })) return;
       }
     }
 
     updateDrops();
     updateDebris();
 
+    emitCriticalSmoke();
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i];
-      p.x += p.vx; p.y += p.vy; p.life--;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life--;
+      if (p.kind === "smoke") {
+        p.vy -= 0.018;
+        p.vx *= 0.98;
+        p.s += 0.06;
+      }
       if (p.life <= 0) particles.splice(i, 1);
     }
 
@@ -2181,7 +2469,8 @@
       endPoster.classList.add("fail");
       if (endHint) {
         endHint.style.display = "block";
-        const tip = LOSE_HINTS[Math.floor(Math.random() * LOSE_HINTS.length)];
+        const tip = LOSE_HINTS[loseHintIndex % LOSE_HINTS.length];
+        loseHintIndex++;
         endHint.textContent = "ヒント：" + tip;
       }
       sfxLose();
@@ -2477,6 +2766,8 @@
   let _landRocks = null;
   let _landPebbles = null;
   let _landPatches = null;
+  /** 遠景の小さな市街地クラスタ（点在・見た目のみ） */
+  let _landTowns = null;
 
   function landHash(i, salt) {
     const x = Math.sin(i * 127.1 + (salt || 0) * 311.7 + 19.19) * 43758.5453;
@@ -2487,10 +2778,11 @@
     return t0 * t0 * (3 - 2 * t0);
   }
   function ensureLandDecor() {
-    if (_landRocks) return;
     const farY = GROUND_Y - GROUND_DEPTH;
     const nearY = GROUND_Y;
     const depth = Math.max(1, nearY - farY);
+    if (_landRocks && _landTowns) return;
+    if (!_landRocks) {
     _landRocks = [];
     for (let i = 0; i < 58; i++) {
       const h0 = landHash(i, 1);
@@ -2532,6 +2824,34 @@
         ry: 2.8 + landHash(i, 23) * 5,
         appearAt: 0.16 + landHash(i, 24) * 0.42,
       });
+    }
+    } // end if (!_landRocks)
+    // 都市サイト（奥3＋手前2）。unlockAt で順に芽生え、成長は永続ピーク知恵
+    // 旧フォーマットは捨てて再生成
+    if (_landTowns && (_landTowns.length !== 5 || _landTowns[0].unlockAt == null)) {
+      _landTowns = null;
+    }
+    if (!_landTowns) {
+      const townSlots = [
+        { cxFrac: 0.2, depth01: 0.16, unlockAt: 0 },
+        { cxFrac: 0.55, depth01: 0.26, unlockAt: 3 },
+        { cxFrac: 0.82, depth01: 0.2, unlockAt: 5 },
+        // 手前寄り（プレイ床直上は避ける）
+        { cxFrac: 0.32, depth01: 0.52, unlockAt: 8 },
+        { cxFrac: 0.7, depth01: 0.58, unlockAt: 11 },
+      ];
+      _landTowns = [];
+      for (let ti = 0; ti < townSlots.length; ti++) {
+        const slot = townSlots[ti];
+        const h0 = landHash(ti, 60);
+        _landTowns.push({
+          cx: slot.cxFrac * W + (h0 - 0.5) * 14,
+          cy: farY + depth * slot.depth01,
+          depth01: slot.depth01,
+          seed: ti * 17 + 3,
+          unlockAt: slot.unlockAt,
+        });
+      }
     }
   }
 
@@ -2616,6 +2936,341 @@
       }
       g.restore();
     }
+    g.globalAlpha = 1;
+    g.restore();
+  }
+
+  /**
+   * 都市の気配（知恵ピークで永続成長・約20でMax）。
+   * 各サイトは中心から3段階で拡大。川横断路は橋。
+   */
+  function paintLandTowns(g, u) {
+    ensureLandDecor();
+    if (!_landTowns || !_landTowns.length) return;
+    if (urbanPeakWisdom <= 0) return;
+
+    const houseBody = "#f4f7fa";
+    const houseRoof = "#6aa8d8";
+    const houseEdge = "#4a6a88";
+    const infraBody = "#e8eef4";
+    const infraEdge = "#4a88b8";
+    const tallBody = "#eef4f8";
+    const tallCap = "#80b0d8";
+    const mastRed = "#e84848";
+    const mastArm = "#ff7040";
+    const mastTip = "#ffd040";
+    const padRx0 = 24;
+    const padRy0 = 10;
+
+    // 成長中のサイト（grow>0）
+    const active = [];
+    for (let ti = 0; ti < _landTowns.length; ti++) {
+      const site = _landTowns[ti];
+      const grow = urbanSiteGrow(site.unlockAt || 0);
+      if (grow > 0.04) active.push({ site, grow, ti });
+    }
+    if (!active.length) return;
+
+    function ease(t0) {
+      return t0 * t0 * (3 - 2 * t0);
+    }
+
+    function miniHouse(x, y, sc) {
+      const w = 4.0 * sc;
+      const h = 3.2 * sc;
+      g.fillStyle = houseBody;
+      g.strokeStyle = houseEdge;
+      g.lineWidth = 0.9;
+      g.fillRect(x - w * 0.5, y - h, w, h);
+      g.strokeRect(x - w * 0.5, y - h, w, h);
+      g.fillStyle = houseRoof;
+      g.beginPath();
+      g.moveTo(x - w * 0.7, y - h);
+      g.lineTo(x, y - h - 2.8 * sc);
+      g.lineTo(x + w * 0.7, y - h);
+      g.closePath();
+      g.fill();
+      g.strokeStyle = houseEdge;
+      g.stroke();
+    }
+
+    function miniDam(x, y, len, sc) {
+      g.fillStyle = infraBody;
+      g.strokeStyle = infraEdge;
+      g.lineWidth = 1;
+      g.fillRect(x, y - 1.8 * sc, len, 3.0 * sc);
+      g.strokeRect(x, y - 1.8 * sc, len, 3.0 * sc);
+      g.fillStyle = "#d0e4f0";
+      g.fillRect(x - 1.5 * sc, y - 2.8 * sc, 2.2 * sc, 4.0 * sc);
+      g.fillRect(x + len - 0.7 * sc, y - 2.8 * sc, 2.2 * sc, 4.0 * sc);
+      g.strokeRect(x - 1.5 * sc, y - 2.8 * sc, 2.2 * sc, 4.0 * sc);
+      g.strokeRect(x + len - 0.7 * sc, y - 2.8 * sc, 2.2 * sc, 4.0 * sc);
+    }
+
+    function miniMast(x, y, h, sc) {
+      g.fillStyle = mastRed;
+      g.fillRect(x - 1.1 * sc, y - 1.5 * sc, 2.2 * sc, 1.5 * sc);
+      g.strokeStyle = mastRed;
+      g.lineWidth = 1.85 * sc;
+      g.beginPath();
+      g.moveTo(x, y);
+      g.lineTo(x, y - h);
+      g.stroke();
+      const arm = 3.2 * sc;
+      g.strokeStyle = mastArm;
+      g.lineWidth = 1.4 * sc;
+      for (let i = 0; i < 2; i++) {
+        const ay = y - h * (0.38 + i * 0.26);
+        g.beginPath();
+        g.moveTo(x - arm, ay);
+        g.lineTo(x + arm, ay);
+        g.stroke();
+      }
+      g.fillStyle = mastTip;
+      g.beginPath();
+      g.arc(x, y - h - 0.8 * sc, 1.35 * sc, 0, Math.PI * 2);
+      g.fill();
+      g.strokeStyle = mastRed;
+      g.lineWidth = 0.8;
+      g.stroke();
+    }
+
+    function miniTall(x, y, w, h) {
+      g.fillStyle = tallBody;
+      g.strokeStyle = infraEdge;
+      g.lineWidth = 0.9;
+      g.fillRect(x - w * 0.5, y - h, w, h);
+      g.strokeRect(x - w * 0.5, y - h, w, h);
+      g.fillStyle = tallCap;
+      g.fillRect(x - w * 0.6, y - h - 1.4, w * 1.2, 1.5);
+    }
+
+    // 線分交差
+    function segIntersect(a, b, c, d) {
+      const den = (a.x - b.x) * (c.y - d.y) - (a.y - b.y) * (c.x - d.x);
+      if (Math.abs(den) < 1e-6) return null;
+      const t = ((a.x - c.x) * (c.y - d.y) - (a.y - c.y) * (c.x - d.x)) / den;
+      const u2 = -((a.x - b.x) * (a.y - c.y) - (a.y - b.y) * (a.x - c.x)) / den;
+      if (t < 0.05 || t > 0.95 || u2 < 0 || u2 > 1) return null;
+      return { x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y), t };
+    }
+
+    // 川ポリライン（キャッシュ時点の緑化）
+    const riverPts = [];
+    try {
+      const growth = riverGrowth(u, false);
+      const defs = getRiverDefs(growth);
+      for (let di = 0; di < defs.length; di++) {
+        if (growth < (defs[di].minG || 0)) continue;
+        const pts = defs[di].pts;
+        for (let pi = 0; pi < pts.length; pi++) riverPts.push(pts[pi]);
+      }
+    } catch (_) {}
+
+    function findRiverCross(x0, y0, x1, y1) {
+      if (riverPts.length < 2) return null;
+      const a = { x: x0, y: y0 };
+      const b = { x: x1, y: y1 };
+      let best = null;
+      for (let i = 0; i < riverPts.length - 1; i++) {
+        const hit = segIntersect(a, b, riverPts[i], riverPts[i + 1]);
+        if (!hit) continue;
+        if (!best || Math.abs(hit.t - 0.5) < Math.abs(best.t - 0.5)) best = hit;
+      }
+      return best;
+    }
+
+    /** 道を描き、川交差なら中央を橋に */
+    function strokeRoadOrBridge(x0, y0, x1, y1, width, color, alpha) {
+      const hit = findRiverCross(x0, y0, x1, y1);
+      if (!hit) {
+        g.globalAlpha = alpha;
+        g.strokeStyle = color;
+        g.lineWidth = width;
+        g.beginPath();
+        g.moveTo(x0, y0);
+        g.lineTo(x1, y1);
+        g.stroke();
+        return;
+      }
+      // 交差前後の道（ギャップ）
+      const dx = x1 - x0;
+      const dy = y1 - y0;
+      const gap = 0.12;
+      const t0 = Math.max(0, hit.t - gap);
+      const t1 = Math.min(1, hit.t + gap);
+      g.globalAlpha = alpha;
+      g.strokeStyle = color;
+      g.lineWidth = width;
+      g.beginPath();
+      g.moveTo(x0, y0);
+      g.lineTo(x0 + dx * t0, y0 + dy * t0);
+      g.stroke();
+      g.beginPath();
+      g.moveTo(x0 + dx * t1, y0 + dy * t1);
+      g.lineTo(x1, y1);
+      g.stroke();
+      // 橋デッキ（川の上）
+      const ang = Math.atan2(dy, dx);
+      const blen = 14;
+      g.save();
+      g.translate(hit.x, hit.y);
+      g.rotate(ang);
+      g.globalAlpha = Math.min(0.95, alpha + 0.15);
+      g.fillStyle = "#d8e8f4";
+      g.strokeStyle = "#3a78a8";
+      g.lineWidth = 1.2;
+      g.fillRect(-blen * 0.5, -2.4, blen, 4.8);
+      g.strokeRect(-blen * 0.5, -2.4, blen, 4.8);
+      g.fillStyle = "#f0f6fa";
+      g.fillRect(-blen * 0.5, -1.2, blen, 1.1);
+      // 脚
+      g.strokeStyle = "#4a88b8";
+      g.lineWidth = 1.3;
+      g.beginPath();
+      g.moveTo(-blen * 0.28, 2.4);
+      g.lineTo(-blen * 0.28, 5.5);
+      g.moveTo(blen * 0.28, 2.4);
+      g.lineTo(blen * 0.28, 5.5);
+      g.stroke();
+      g.restore();
+    }
+
+    g.save();
+    g.lineCap = "round";
+
+    // —— 1) 成長スケール付きパッド ——
+    for (let ai = 0; ai < active.length; ai++) {
+      const { site, grow } = active[ai];
+      const eg = ease(grow);
+      const scale = 0.32 + 0.68 * eg; // 中心から拡大
+      const padRx = padRx0 * scale;
+      const padRy = padRy0 * scale;
+      const cx = site.cx;
+      const cy = site.cy;
+      g.globalAlpha = 0.55 + 0.4 * eg;
+      const pg = g.createRadialGradient(cx, cy, 1, cx, cy, padRx);
+      pg.addColorStop(0, "#e8ecf0");
+      pg.addColorStop(0.4, "#c8d0d8");
+      pg.addColorStop(0.78, "#a0a8b0");
+      pg.addColorStop(1, "rgba(140, 148, 156, 0.14)");
+      g.fillStyle = pg;
+      g.beginPath();
+      g.ellipse(cx, cy + 0.5, padRx, padRy, 0, 0, Math.PI * 2);
+      g.fill();
+      g.globalAlpha = 0.4 + 0.25 * eg;
+      g.strokeStyle = "#f0f2f4";
+      g.lineWidth = 1.1;
+      g.beginPath();
+      g.ellipse(cx, cy + 0.5, padRx * 0.94, padRy * 0.9, 0, 0, Math.PI * 2);
+      g.stroke();
+      if (eg > 0.35) {
+        g.globalAlpha = 0.12 + 0.1 * eg;
+        g.strokeStyle = "#ffffff";
+        g.lineWidth = 0.65;
+        for (let hi = -2; hi <= 2; hi++) {
+          g.beginPath();
+          g.moveTo(cx - padRx * 0.7, cy + hi * 2 * scale);
+          g.lineTo(cx + padRx * 0.7, cy + hi * 2 * scale);
+          g.stroke();
+        }
+      }
+    }
+
+    // —— 2) 道路（近傍接続・川なら橋）——
+    // 接続: インデックス順の隣接 + 奥(0-2)と手前(3-4) + 奥-手前の代表リンク
+    const links = [];
+    for (let i = 0; i < active.length; i++) {
+      for (let j = i + 1; j < active.length; j++) {
+        const a = active[i].site;
+        const b = active[j].site;
+        const dx = a.cx - b.cx;
+        const dy = a.cy - b.cy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        links.push({ i, j, dist, ga: active[i].grow, gb: active[j].grow });
+      }
+    }
+    links.sort((p, q) => p.dist - q.dist);
+    // 近い順に最大 7 本（しっかりつなぐが全結合はしない）
+    const used = links.slice(0, Math.min(7, links.length));
+    for (let li = 0; li < used.length; li++) {
+      const L = used[li];
+      if (L.ga < 0.2 || L.gb < 0.2) continue;
+      const a = active[L.i].site;
+      const b = active[L.j].site;
+      const yOff = (li % 3) * 1.4 - 1.4;
+      const x0 = a.cx;
+      const y0 = a.cy + padRy0 * 0.25 * (0.4 + 0.6 * L.ga) + yOff;
+      const x1 = b.cx;
+      const y1 = b.cy + padRy0 * 0.25 * (0.4 + 0.6 * L.gb) + yOff;
+      const w = 2.2 + Math.min(L.ga, L.gb) * 0.9;
+      strokeRoadOrBridge(x0, y0, x1, y1, w, "#c0c8d0", 0.75);
+      strokeRoadOrBridge(x0, y0, x1, y1, 0.9, "#f2f4f6", 0.35);
+    }
+    // パッド内枝道
+    for (let ai = 0; ai < active.length; ai++) {
+      const { site, grow } = active[ai];
+      if (grow < 0.25) continue;
+      const eg = ease(grow);
+      const s = site.seed | 0;
+      const ang = (landHash(s, 100) - 0.5) * Math.PI * 0.7;
+      const len = padRx0 * (0.25 + 0.25 * eg);
+      strokeRoadOrBridge(
+        site.cx, site.cy + 0.5,
+        site.cx + Math.cos(ang) * len,
+        site.cy + Math.sin(ang) * padRy0 * 0.4 * eg,
+        1.3, "#c8d0d8", 0.5
+      );
+    }
+
+    // —— 3) 構造物（grow で段階的に）——
+    for (let ai = 0; ai < active.length; ai++) {
+      const { site, grow } = active[ai];
+      const eg = ease(grow);
+      const s = site.seed | 0;
+      const cx = site.cx;
+      const cy = site.cy;
+      const scale = 0.32 + 0.68 * eg;
+      const padRx = padRx0 * scale;
+      const padRy = padRy0 * scale;
+      const sc = 0.85 + 0.4 * eg;
+      const spreadX = padRx * 0.5;
+      const spreadY = padRy * 0.32;
+
+      // 段階1相当: 家（grow で軒数増）
+      const nHouse = grow < 0.35 ? 1 + (s % 2) : grow < 0.7 ? 2 + (s % 2) : 3 + (s % 2);
+      g.globalAlpha = 0.7 + 0.25 * eg;
+      for (let hi = 0; hi < nHouse; hi++) {
+        const hx = cx + (landHash(s + hi, 70) - 0.5) * 2 * spreadX;
+        const hy = cy + (landHash(s + hi, 71) - 0.5) * 2 * spreadY;
+        miniHouse(hx, hy, sc * (0.85 + landHash(s + hi, 72) * 0.2));
+      }
+
+      // 段階2相当: ダム（中成長から）
+      if (grow >= 0.38) {
+        g.globalAlpha = 0.75 + 0.2 * eg;
+        const len = Math.min(padRx * 1.1, 10 + landHash(s, 80) * 5) * (0.7 + 0.3 * eg);
+        const bx = cx - len * 0.5 + (landHash(s, 81) - 0.5) * 2;
+        const by = cy + spreadY * 0.55;
+        miniDam(bx, by, len, sc);
+      }
+
+      // 段階3相当: 塔・高建物（高成長から）
+      if (grow >= 0.68) {
+        const tGrow = (grow - 0.68) / 0.32;
+        g.globalAlpha = 0.8 + 0.18 * tGrow;
+        const mastX = cx + (landHash(s, 90) - 0.5) * spreadX;
+        miniMast(mastX, cy, (10 + landHash(s, 91) * 3.5) * (0.75 + 0.25 * tGrow), sc);
+        const nTall = 1 + (s % 2);
+        for (let vi = 0; vi < nTall; vi++) {
+          const tx = cx + (landHash(s + vi, 92) - 0.5) * 2 * spreadX * 0.85;
+          const th = (7 + landHash(s + vi, 93) * 3.2) * (0.75 + 0.25 * tGrow);
+          const tw = 3.2 + landHash(s + vi, 94) * 1.3;
+          miniTall(tx, cy, tw, th);
+        }
+      }
+    }
+
     g.globalAlpha = 1;
     g.restore();
   }
@@ -2706,6 +3361,8 @@
 
     // 緑パッチ・岩（緑化で消える）
     paintLandDecor(g, u);
+    // 遠景の小さな街の気配（点在・緑化で増える）
+    paintLandTowns(g, u);
 
     // パースグリッド（収束線で 2.5D。土地境界ではない）
     g.save();
@@ -2785,8 +3442,17 @@
 
   function ensureSceneCaches() {
     const step = visStepOf(greenProgress);
-    if (step === _visStep && _skyMtnCache && _groundBaseCache) return;
+    const urbanStep = Math.min(20, urbanPeakWisdom | 0);
+    if (
+      step === _visStep &&
+      urbanStep === _urbanStep &&
+      _skyMtnCache &&
+      _groundBaseCache
+    ) {
+      return;
+    }
     _visStep = step;
+    _urbanStep = urbanStep;
     const u = step / 12;
     rebuildSkyMtnCache(u);
     rebuildGroundBaseCache(u);
@@ -4197,14 +4863,7 @@
     // 芝生（色だけでなく短い草が生える）
     drawLiveGrass(ctx, u);
 
-    // 双葉は少数
-    if (u > 0.05) {
-      const n = Math.min(10, (4 + u * 12) | 0);
-      for (let i = 0; i < n; i++) {
-        const x = 16 + ((i * 53 + seeds * 7) % (W - 32));
-        drawCotyledon(x, nearY, 0.75 + (i % 3) * 0.12, i);
-      }
-    }
+    // ピクトグラム風の双葉・花・木は非表示（flora 配列は緑化計算用に残す）
 
     // 根（断面）— パルス計算を簡略
     const faceTop = nearY;
@@ -4246,39 +4905,6 @@
       }
     }
 
-    // 植生（木のピクトは描かない・花・芽のみ）
-    for (let fi = 0; fi < flora.length; fi++) {
-      const f = flora[fi];
-      if (f.kind === "tree") continue; // ピクトグラム木は非表示
-      const sx = f.x;
-      const base = nearY + 1;
-      const sway = Math.sin(t * 0.04 + f.phase) * 0.8;
-      if (f.kind === "flower") {
-        const fh = Math.min(f.h, 9);
-        ctx.strokeStyle = "#3a6a28";
-        ctx.lineWidth = 1;
-        ctx.lineCap = "round";
-        ctx.beginPath();
-        ctx.moveTo(sx, base);
-        ctx.quadraticCurveTo(sx + sway * 0.3, base - fh * 0.5, sx + sway * 0.4, base - fh);
-        ctx.stroke();
-        const fx = sx + sway * 0.4;
-        const fy = base - fh;
-        ctx.fillStyle = "#d86898";
-        for (let p = 0; p < 4; p++) {
-          const a = (p / 4) * Math.PI * 2 + f.phase * 0.2;
-          ctx.beginPath();
-          ctx.ellipse(fx + Math.cos(a) * 1.7, fy + Math.sin(a) * 1.4, 1.5, 1.0, a, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.fillStyle = "#e8d060";
-        ctx.beginPath();
-        ctx.arc(fx, fy, 1, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        drawCotyledon(sx, base, 1, f.phase);
-      }
-    }
   }
   /**
    * 前面ガード型シールド「/￣\」
@@ -4402,6 +5028,7 @@
     ctx.save();
     ctx.translate(cx0, y + player.h * 0.55);
     ctx.scale(sc, sc * 0.96);
+    if (player.tilt !== 0) ctx.rotate(player.tilt);
     ctx.translate(-cx0, -(y + player.h * 0.55));
 
     if (player.shield > 0) {
@@ -4520,28 +5147,35 @@
 
     // 機体マーク
     // 通常: 白X / 連射: 白縁の黒字 / 三連: XXX / 連射+三連: 白縁の黒XXX
+    // 被弾段階: lives 3=常時 / 2=ゆっくり点滅 / 1=速く点滅（右上▲は別途HUD）
     const cx = cx0;
     const cy = y + 12;
-    const mark = player.triple ? "XXX" : "X";
-    const outlined = !!player.rapid;
-    ctx.save();
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = player.triple
-      ? "bold 9px 'Segoe UI', Meiryo, sans-serif"
-      : "bold 11px 'Segoe UI', Meiryo, sans-serif";
-    if (outlined) {
-      ctx.lineJoin = "round";
-      ctx.lineWidth = 2.6;
-      ctx.strokeStyle = isRed ? "#ffc0b0" : isPurple ? "#f0c0ff" : "#ffffff";
-      ctx.strokeText(mark, cx, cy);
-      ctx.fillStyle = isRed ? "#2a0808" : isPurple ? "#180818" : "#0a0a0a";
-      ctx.fillText(mark, cx, cy);
-    } else {
-      ctx.fillStyle = isRed ? "#ffe0d8" : isPurple ? "#f8e8ff" : "#ffffff";
-      ctx.fillText(mark, cx, cy);
+    const markVisible =
+      player.lives >= 3 ||
+      (player.lives === 2 && Math.floor(t / 18) % 2 === 0) ||
+      (player.lives === 1 && Math.floor(t / 6) % 2 === 0);
+    if (markVisible) {
+      const mark = player.triple ? "XXX" : "X";
+      const outlined = !!player.rapid;
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = player.triple
+        ? "bold 9px 'Segoe UI', Meiryo, sans-serif"
+        : "bold 11px 'Segoe UI', Meiryo, sans-serif";
+      if (outlined) {
+        ctx.lineJoin = "round";
+        ctx.lineWidth = 2.6;
+        ctx.strokeStyle = isRed ? "#ffc0b0" : isPurple ? "#f0c0ff" : "#ffffff";
+        ctx.strokeText(mark, cx, cy);
+        ctx.fillStyle = isRed ? "#2a0808" : isPurple ? "#180818" : "#0a0a0a";
+        ctx.fillText(mark, cx, cy);
+      } else {
+        ctx.fillStyle = isRed ? "#ffe0d8" : isPurple ? "#f8e8ff" : "#ffffff";
+        ctx.fillText(mark, cx, cy);
+      }
+      ctx.restore();
     }
-    ctx.restore();
 
     let labelY = y - 8;
     if (frozen) {
@@ -5099,6 +5733,131 @@
         ctx.lineTo(-7, 6);
         ctx.closePath();
         ctx.fill();
+      } else if (d.type === "spanner") {
+        // 埋没：下に沈みつつ薄く（土に食われる）
+        const sink = d.sink || 0;
+        const buryY = sink * 10;
+        ctx.globalAlpha = Math.max(0.08, 1 - sink * 0.95);
+        ctx.translate(0, buryY);
+        // お遊び用デフォルメ・オープンエンドスパナ（斜めシルエットで一発認識）
+        ctx.rotate(-0.62 + Math.sin(d.bob || 0) * 0.06);
+        // 落ち影
+        ctx.fillStyle = "rgba(0,0,0,0.25)";
+        ctx.beginPath();
+        ctx.ellipse(0.5, 11, 8, 2.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // 金属グラデ（頭〜柄）
+        const metal = ctx.createLinearGradient(-8, -10, 6, 14);
+        metal.addColorStop(0, "#f0f4f8");
+        metal.addColorStop(0.35, "#b0b8c0");
+        metal.addColorStop(0.7, "#e8ecf0");
+        metal.addColorStop(1, "#707880");
+        ctx.fillStyle = metal;
+        ctx.strokeStyle = "#1e242c";
+        ctx.lineWidth = 1.5;
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+        // 頭：大きな「C / 口」＝スパナの顔（ここが一番の識別点）
+        ctx.beginPath();
+        // 外輪郭（U の口を上向き）
+        ctx.moveTo(-8, -11);
+        ctx.lineTo(-8, -1);
+        ctx.quadraticCurveTo(-8, 4, -2.5, 4);
+        ctx.lineTo(2.5, 4);
+        ctx.quadraticCurveTo(8, 4, 8, -1);
+        ctx.lineTo(8, -11);
+        // 内側くり抜きへ（右顎）
+        ctx.lineTo(4.5, -11);
+        ctx.lineTo(4.5, -2.5);
+        ctx.quadraticCurveTo(4.5, 0.8, 2, 0.8);
+        ctx.lineTo(-2, 0.8);
+        ctx.quadraticCurveTo(-4.5, 0.8, -4.5, -2.5);
+        ctx.lineTo(-4.5, -11);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // 口の中の影（奥行き）
+        ctx.fillStyle = "rgba(30,36,44,0.35)";
+        ctx.fillRect(-3.2, -10, 6.4, 8);
+        // 六角ボルトがはまってる風（ユーモラス）
+        ctx.fillStyle = "#d4a020";
+        ctx.strokeStyle = "#5a3a08";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let k = 0; k < 6; k++) {
+          const a = -Math.PI / 2 + (k * Math.PI) / 3;
+          const hx = Math.cos(a) * 2.6;
+          const hy = -5.2 + Math.sin(a) * 2.6;
+          if (k === 0) ctx.moveTo(hx, hy);
+          else ctx.lineTo(hx, hy);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // 付け根のナット風リング
+        ctx.fillStyle = metal;
+        ctx.strokeStyle = "#1e242c";
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        ctx.arc(0, 5.2, 3.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#5a626a";
+        ctx.beginPath();
+        ctx.arc(0, 5.2, 1.3, 0, Math.PI * 2);
+        ctx.fill();
+        // 長い柄
+        ctx.fillStyle = metal;
+        ctx.strokeStyle = "#1e242c";
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(-2.6, 7.5);
+        ctx.lineTo(-2.2, 17);
+        ctx.lineTo(2.2, 17);
+        ctx.lineTo(2.6, 7.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // ゴムグリップ帯（赤茶＝工具あるある）
+        ctx.fillStyle = "#a04028";
+        ctx.strokeStyle = "#4a1810";
+        ctx.lineWidth = 1;
+        ctx.fillRect(-2.8, 10, 5.6, 5.5);
+        ctx.strokeRect(-2.8, 10, 5.6, 5.5);
+        ctx.strokeStyle = "rgba(255,200,160,0.35)";
+        for (let g = 0; g < 3; g++) {
+          ctx.beginPath();
+          ctx.moveTo(-2.2, 11.2 + g * 1.5);
+          ctx.lineTo(2.2, 11.2 + g * 1.5);
+          ctx.stroke();
+        }
+        // 柄尻キャップ
+        ctx.fillStyle = "#4a525a";
+        ctx.beginPath();
+        ctx.arc(0, 18.2, 2.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#1e242c";
+        ctx.stroke();
+        // きらきら（お遊び）
+        const tw = 0.5 + 0.5 * Math.sin((d.bob || 0) * 2.4);
+        ctx.fillStyle = `rgba(255,255,200,${0.25 + tw * 0.55})`;
+        ctx.beginPath();
+        ctx.moveTo(-10, -12);
+        ctx.lineTo(-6.5, -15);
+        ctx.lineTo(-7.5, -11);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = `rgba(255,255,255,${0.35 + tw * 0.5})`;
+        ctx.fillRect(6, -8, 2, 2);
+        ctx.fillRect(-1, 8, 1.5, 1.5);
+        // 傾けを戻して、土の帯だけ水平に
+        ctx.rotate(0.62 - Math.sin(d.bob || 0) * 0.06);
+        if (sink > 0.15) {
+          ctx.globalAlpha = Math.min(0.55, sink * 0.7);
+          ctx.fillStyle = "#5a4a38";
+          ctx.fillRect(-12, 6, 24, 12);
+        }
+        ctx.globalAlpha = 1;
       } else {
         ctx.fillStyle = "rgba(100, 200, 240, 0.4)";
         ctx.strokeStyle = "#80e0ff";
@@ -5117,9 +5876,18 @@
 
   function drawParticles() {
     for (const p of particles) {
-      ctx.globalAlpha = p.life / p.max;
-      ctx.fillStyle = p.color;
-      ctx.fillRect(p.x, p.y, p.s, p.s);
+      const a = Math.max(0, p.life / p.max);
+      if (p.kind === "smoke") {
+        ctx.globalAlpha = a * 0.42;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y, p.s * 0.65, p.s * 0.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.globalAlpha = a;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, p.s, p.s);
+      }
     }
     ctx.globalAlpha = 1;
   }
@@ -5173,8 +5941,11 @@
     ctx.fillText("WAVE " + wave + "/" + MAX_WAVE, 100, 22);
     ctx.fillText("S:" + seeds + " W:" + wisdom, 178, 22);
     ctx.fillText("緑" + Math.round(greenProgress * 100) + "%", 255, 22);
+    // 都市化段階（知恵の実 urbanStageOf 0〜3）
+    ctx.fillStyle = "#b8c0c8";
+    ctx.fillText("都市" + urbanStageOf(), 312, 22);
 
-    let px = 318;
+    let px = 362;
     if (player.rapid) {
       ctx.fillStyle = "#e0c040";
       ctx.fillText("⚡", px, 22);
@@ -5257,7 +6028,7 @@
     ctx.textBaseline = "alphabetic";
   }
 
-  /** スモッグ霧（見た目のみ）。通常はごくうっすら、巨大はぶわぁ〜と濃く・通過後は早めにすーっと薄く */
+  /** スモッグ霧（見た目のみ）。通常はごくうっすら全画面。巨大はまだら→徐々に拡散（真っ白一枚にしない） */
   function drawSmogFog() {
     let smogCount = 0;
     for (const e of enemies) {
@@ -5268,30 +6039,83 @@
     const wave = 0.5 + 0.5 * Math.sin(t * 0.042);
     let target = 0;
     if (giantSmog) {
-      // かなり濃い帯（完全非表示なし）
-      target = 0.50 + 0.18 * wave; // ≈0.50〜0.68
+      // 強度ピークは抑えめ（局所ブロブで視界不良を出す）
+      target = 0.42 + 0.12 * wave; // ≈0.42〜0.54
     } else if (smogCount > 0) {
       // 通常スモッグ：ごくうっすら
       const base = Math.min(0.075, smogCount * 0.01);
       target = base * (0.72 + 0.28 * wave);
     }
-    // 指数スムーズ：出現は徐々に（ぶわぁ）、横切り後は早めにすーっと薄く
+    // 指数スムーズ：出現は徐々に、横切り後は早めにすーっと薄く
     let k;
     if (target > smogFogAlphaSmooth) {
-      k = giantSmog ? 0.016 : 0.1; // 巨大：約2秒で濃く／薄い通常へ上昇はすぐ
+      k = giantSmog ? 0.013 : 0.1;
     } else if (giantSmog) {
-      k = 0.04; // 巨大中の濃淡追随
+      k = 0.04;
     } else {
-      // 巨大通過後（または全滅後）：~0.6〜0.8秒で薄く／消える
       k = 0.09;
     }
     smogFogAlphaSmooth += (target - smogFogAlphaSmooth) * k;
+
+    // 空間広がり：出現中だけ 0→1。消滅後は広げたまま alpha で薄れる
+    if (giantSmog) {
+      if (smogFogSpread < 1) {
+        smogFogSpread = Math.min(1, smogFogSpread + 0.0055); // ≈3秒で全面寄り
+      }
+    } else if (smogFogAlphaSmooth < 0.05) {
+      smogFogSpread = 0;
+    }
+
     if (smogFogAlphaSmooth < 0.003) {
       smogFogAlphaSmooth = 0;
       return;
     }
-    ctx.fillStyle = `rgba(160, 190, 210, ${smogFogAlphaSmooth})`;
+
+    // 巨大中、または巨大帯の残留：まだら多層。通常薄霧のみなら一枚塗り
+    const mottled = !!giantSmog || smogFogAlphaSmooth > 0.12;
+    if (!mottled) {
+      ctx.fillStyle = `rgba(160, 190, 210, ${smogFogAlphaSmooth})`;
+      ctx.fillRect(0, 0, W, H);
+      return;
+    }
+
+    const intensity = smogFogAlphaSmooth;
+    const spread = smogFogSpread;
+    // ease: 序盤ゆっくり → 終盤まとめて広がる
+    const ease = spread * spread * (3 - 2 * spread);
+    // ベース膜は薄く（真っ白防止）。終盤でも全体ベールは控えめ
+    const baseA = intensity * (0.10 + 0.16 * ease);
+    ctx.fillStyle = `rgba(150, 180, 200, ${baseA})`;
     ctx.fillRect(0, 0, W, H);
+
+    // まだらブロブ：固定シード位置＋弱ドリフト。spread で半径・出現が成長
+    const nBlobs = 11;
+    for (let i = 0; i < nBlobs; i++) {
+      // 決定的な疑似乱数（毎フレーム同じ配置）
+      const u = ((i * 73 + 19) % 97) / 97;
+      const v = ((i * 41 + 7) % 89) / 89;
+      const dens = 0.55 + 0.45 * (((i * 17 + 3) % 11) / 10); // 濃淡差
+      // 出現順をずらす：序盤は一部のブロブだけ
+      const appear = Math.min(1, Math.max(0, (spread - i * 0.055) / 0.35));
+      if (appear <= 0.02) continue;
+      const driftX = Math.sin(t * 0.011 + i * 1.7) * (10 + i * 1.2);
+      const driftY = Math.cos(t * 0.009 + i * 2.1) * (8 + i * 0.9);
+      const cx = u * W + driftX;
+      const cy = 20 + v * (H - 40) + driftY;
+      // 序盤は小さめ・終盤は大きく重なる
+      const rBase = 28 + dens * 36 + (i % 3) * 10;
+      const r = rBase * (0.35 + 0.95 * ease) * (0.75 + 0.35 * dens);
+      const peak = Math.min(0.48, intensity * (0.38 + 0.28 * dens) * appear * (0.55 + 0.45 * ease));
+      if (peak < 0.01) continue;
+      const gr = ctx.createRadialGradient(cx, cy, r * 0.08, cx, cy, r);
+      gr.addColorStop(0, `rgba(165, 195, 215, ${peak})`);
+      gr.addColorStop(0.45, `rgba(145, 175, 200, ${peak * 0.55})`);
+      gr.addColorStop(1, "rgba(140, 170, 195, 0)");
+      ctx.fillStyle = gr;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, r, r * (0.72 + 0.12 * dens), 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   function draw() {
