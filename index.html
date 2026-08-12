@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Grassroots Defense ver.4.2 · 2.5D — 草の根防衛</title>
+  <title>Grassroots Defense ver.4.3 · 2.5D — 草の根防衛</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -154,7 +154,8 @@
     }
     #end .panel.end-panel > h2,
     #end .panel.end-panel > p,
-    #end .panel.end-panel > button {
+    #end .panel.end-panel > button,
+    #end .panel.end-panel > .clear-choices {
       flex: 0 0 auto;
     }
     .end-frame {
@@ -190,7 +191,7 @@
     #end-poster.show {
       display: block;
     }
-    /* 隠し画面：VOID（クリア後 ENTER） */
+    /* VOID 仮エンディング（ドッキング後） */
     #void-end.ui {
       padding: 10px;
       background: rgba(4, 6, 12, 0.96);
@@ -233,42 +234,393 @@
     .void-dim {
       position: absolute;
       inset: 0;
-      background: rgba(0, 0, 0, 0.55);
+      background: rgba(0, 0, 0, 0.35);
       pointer-events: none;
       z-index: 1;
     }
     .void-text {
       position: absolute;
-      inset: 0;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 12px;
-      padding: 16px;
+      gap: 10px;
+      padding: 18px 28px;
       text-align: center;
       pointer-events: none;
       z-index: 2;
+      background: rgba(8, 8, 18, 0.72);
+      border: 1px solid rgba(160, 150, 220, 0.35);
+      border-radius: 10px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.55);
+      min-width: min(280px, 82%);
     }
     .void-line {
       color: #f0f4ff;
-      font-size: 1.05rem;
-      font-weight: 700;
+      font-size: 1.12rem;
+      font-weight: 800;
       line-height: 1.55;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.06em;
       text-shadow: 0 0 8px rgba(0, 0, 0, 0.9), 0 2px 4px #000;
       margin: 0;
     }
     .void-sub {
-      color: #d0d8f0;
-      font-size: 1.15rem;
-      font-weight: 800;
+      color: #d8e0ff;
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
     }
     #void-end-btn {
       flex: 0 0 auto;
       min-width: 120px;
       font-weight: 800;
       letter-spacing: 0.12em;
+    }
+    #void-end-hint {
+      font-size: 0.72rem;
+      color: #9a9ab8;
+      margin: 0;
+      letter-spacing: 0.04em;
+    }
+    /* 地上編エンディング（LIFE TOWER） */
+    #ground-ending.ui {
+      padding: 10px;
+      background: rgba(4, 10, 8, 0.96);
+    }
+    #ground-ending .ground-ending-panel {
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      min-height: 0;
+    }
+    .ground-ending-art {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+      width: 100%;
+      max-height: calc(100% - 90px);
+      min-height: 260px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      border: 2px solid #4a7a50;
+      background: #080c08;
+      overflow: hidden;
+    }
+    #ground-ending-img {
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      object-position: center;
+      display: block;
+    }
+    #ground-ending-btn {
+      flex: 0 0 auto;
+      min-width: 160px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 12px 22px;
+      border: 2px solid #6fad52;
+      border-radius: 8px;
+      background: #2a4a30;
+      color: #e8f8d0;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      line-height: 1.25;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+    #ground-ending-btn:hover {
+      filter: brightness(1.1);
+      border-color: #c8f070;
+    }
+    #ground-ending-btn .ge-en {
+      font-size: 0.85rem;
+      letter-spacing: 0.14em;
+      font-weight: 800;
+    }
+    #ground-ending-btn .ge-ja {
+      font-size: 0.92rem;
+      letter-spacing: 0.04em;
+      font-weight: 800;
+    }
+    #ground-ending-hint {
+      font-size: 0.72rem;
+      color: #8aaa78;
+      margin: 0;
+      letter-spacing: 0.04em;
+    }
+    /* クリア画面：2択ボタン／緊急指令 GO! 点滅 */
+    @keyframes go-blink {
+      0%, 100% {
+        opacity: 1;
+        filter: brightness(1.12);
+        box-shadow: 0 0 16px rgba(255, 180, 60, 0.55);
+      }
+      50% {
+        opacity: 0.5;
+        filter: brightness(0.9);
+        box-shadow: 0 0 4px rgba(200, 100, 30, 0.25);
+      }
+    }
+    .clear-choices {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      max-width: 420px;
+      margin-top: 4px;
+      flex-wrap: wrap;
+    }
+    .clear-choices.hidden {
+      display: none;
+    }
+    .clear-choice {
+      flex: 1 1 160px;
+      min-width: 140px;
+      max-width: 200px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 12px 14px;
+      border: 2px solid #4a6a40;
+      border-radius: 8px;
+      background: #2a3a28;
+      color: #d4ecd0;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      line-height: 1.25;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+      transition: border-color 0.12s, background 0.12s, box-shadow 0.12s, transform 0.12s;
+    }
+    .clear-choice .clear-choice-en {
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      opacity: 0.9;
+      font-weight: 800;
+    }
+    .clear-choice .clear-choice-ja {
+      font-size: 0.95rem;
+      letter-spacing: 0.04em;
+      font-weight: 800;
+    }
+    #clear-end {
+      background: #2a3430;
+      border-color: #5a6a60;
+      color: #c8d8c8;
+      min-width: 150px;
+      max-width: 210px;
+    }
+    #clear-orders {
+      background: #3a5a30;
+      border-color: #6fad52;
+      color: #e8f8d0;
+    }
+    .clear-choice:hover {
+      filter: brightness(1.08);
+    }
+    /* キーボード選択ハイライト */
+    .clear-choice.selected {
+      border-color: #c8f070;
+      border-width: 3px;
+      background: #4a7a38;
+      color: #f4ffe8;
+      box-shadow: 0 0 0 2px rgba(200, 240, 100, 0.35), 0 0 18px rgba(140, 220, 80, 0.4);
+      transform: translateY(-1px);
+    }
+    #clear-end.selected {
+      border-color: #a8c8b0;
+      background: #3a4a42;
+      box-shadow: 0 0 0 2px rgba(160, 200, 170, 0.35), 0 0 14px rgba(100, 140, 110, 0.35);
+    }
+    #clear-orders.selected {
+      border-color: #e8ff80;
+      background: #5a9a40;
+      animation: clear-orders-pulse 1.1s ease-in-out infinite;
+    }
+    @keyframes clear-orders-pulse {
+      0%, 100% { box-shadow: 0 0 0 2px rgba(200, 240, 100, 0.4), 0 0 14px rgba(160, 230, 80, 0.35); }
+      50% { box-shadow: 0 0 0 3px rgba(220, 255, 120, 0.55), 0 0 22px rgba(180, 255, 100, 0.55); }
+    }
+    #clear-keys-hint {
+      font-size: 0.72rem;
+      color: #8aaa78;
+      margin: 2px 0 0;
+      letter-spacing: 0.04em;
+    }
+    #clear-keys-hint.hidden {
+      display: none;
+    }
+    #emergency-sub {
+      font-size: 0.92rem;
+      font-weight: 800;
+      color: #ffcc66;
+      letter-spacing: 0.06em;
+      margin: 6px 0 0;
+      text-shadow: 0 0 10px rgba(255, 160, 40, 0.45);
+    }
+    /* 緊急指令・NEW MISSION 共通パネル */
+    #emergency.ui,
+    #newmission.ui {
+      padding: 10px;
+      background: rgba(12, 8, 6, 0.96);
+    }
+    #emergency .emergency-panel,
+    #newmission .newmission-panel {
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      min-height: 0;
+    }
+    .emergency-frame,
+    .newmission-frame {
+      flex: 1 1 auto;
+      min-height: 0;
+      width: 100%;
+      max-height: calc(100% - 90px);
+      min-height: 260px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      border: 2px solid #c07030;
+      background: #180c08;
+      overflow: hidden;
+    }
+    .newmission-frame {
+      border-color: #4a80c0;
+      background: #080c18;
+    }
+    #emergency-img,
+    #newmission-img {
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      object-position: center;
+      display: block;
+    }
+    #emergency-go {
+      flex: 0 0 auto;
+      min-width: 140px;
+      font-weight: 900;
+      letter-spacing: 0.16em;
+      font-size: 1.15rem;
+      padding: 12px 36px;
+      background: #e09030;
+      color: #1a1008;
+      animation: go-blink 0.85s ease-in-out infinite;
+    }
+    #emergency-go:hover {
+      filter: brightness(1.1);
+    }
+    #newmission-ok {
+      flex: 0 0 auto;
+      min-width: 120px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      background: #d08040;
+      color: #1a1008;
+    }
+    #newmission-ok:hover {
+      filter: brightness(1.08);
+    }
+    /* ドッキング演出（キャンバス一体型・docking-boss-test 移植） */
+    #dock.ui {
+      padding: 8px;
+      background: rgba(4, 6, 12, 0.98);
+    }
+    #dock .dock-panel {
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 0;
+    }
+    #dock-stage {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+      width: 100%;
+      max-height: calc(100% - 36px);
+      min-height: 280px;
+      aspect-ratio: 960 / 720;
+      max-width: 100%;
+      background: #000;
+      border: 2px solid #1a3a5a;
+      box-shadow: 0 0 0 3px #0a1520, 0 0 28px rgba(0, 80, 180, 0.28);
+      overflow: hidden;
+      border-radius: 4px;
+    }
+    #dockCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 5;
+      display: block;
+      image-rendering: auto;
+    }
+    #dock-assembled {
+      position: absolute;
+      z-index: 8;
+      display: none;
+      left: 50%;
+      top: 38%;
+      width: auto;
+      height: auto;
+      max-width: 24%;
+      max-height: 34%;
+      transform: translate(-50%, -50%);
+      object-fit: contain;
+      transition: top 2.2s ease-in-out, transform 2.2s ease-in-out;
+    }
+    #dock-flash {
+      position: absolute;
+      inset: 0;
+      background: #fff;
+      opacity: 0;
+      z-index: 20;
+      pointer-events: none;
+      transition: opacity 0.15s;
+    }
+    #dock-status {
+      flex: 0 0 auto;
+      margin: 0;
+      color: #4a9fff;
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      font-weight: 700;
+      min-height: 1.2em;
     }
     /* オープニング：枠いっぱい・中央寄せ・縦横比維持でできるだけ大きく */
     #opening.ui {
@@ -343,8 +695,52 @@
     #opening .op-hint {
       flex: 0 0 auto;
     }
-    #opening #op-next {
+    #opening #op-next,
+    #opening #op-skip,
+    #opening #op-start {
       flex: 0 0 auto;
+    }
+    #opening .op-actions {
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      min-height: 48px;
+    }
+    #op-skip {
+      min-width: 120px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      background: #4a6a90;
+      color: #e8f0ff;
+    }
+    #op-skip:hover {
+      filter: brightness(1.1);
+    }
+    #op-start {
+      min-width: 140px;
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      font-size: 1.05rem;
+      padding: 12px 32px;
+      background: #6fad52;
+      color: #0d1a12;
+      animation: howto-start-pulse 2.4s ease-in-out infinite;
+    }
+    #op-start:hover {
+      filter: brightness(1.1);
+    }
+    #op-start:disabled {
+      opacity: 0.55;
+      cursor: wait;
+      filter: none;
+      animation: none;
+    }
+    #op-skip.hidden,
+    #op-start.hidden,
+    #op-next.hidden {
+      display: none;
     }
     .howto-panel {
       text-align: left;
@@ -384,7 +780,7 @@
   </style>
 </head>
 <body>
-  <h1>Grassroots Defense <span style="font-size:0.75em;opacity:.7">ver.4.2 · 2.5D</span></h1>
+  <h1>Grassroots Defense <span style="font-size:0.75em;opacity:.7">ver.4.3 · 2.5D</span></h1>
   <p class="sub">草の根の知恵で、環境破壊を跳ね返す — 奥行きのある大地</p>
 
   <div id="wrap">
@@ -396,8 +792,13 @@
         <div class="op-frame">
           <img id="op-poster" alt="Grassroots Begin" src="GGDOP0.png" />
         </div>
-        <p class="op-hint">NEXT = ENTER</p>
-        <button id="op-next" type="button">NEXT</button>
+        <p id="op-hint" class="op-hint">スタート = ENTER</p>
+        <div class="op-actions">
+          <button id="op-skip" type="button" class="hidden">スキップ</button>
+          <button id="op-start" type="button">スタート</button>
+          <!-- 旧 NEXT（互換のため残置・非表示） -->
+          <button id="op-next" type="button" class="hidden">NEXT</button>
+        </div>
       </div>
     </div>
 
@@ -432,13 +833,13 @@
             <li>スペースX号 … 耐久2（3発でゲームオーバー）</li>
           </ul>
         </div>
-        <p class="howto-hint">GAME START = ENTER</p>
+        <p class="howto-hint">ゲームスタート = ENTER・難易度は 1〜4 で切替</p>
         <p id="howto-diff-label" style="text-align:center;font-size:0.78rem;color:#80d0a0;margin:8px 0 2px;">難易度: イージー（攻撃−30%）</p>
         <p style="text-align:center;font-size:0.68rem;color:#8aaa78;margin-bottom:8px;">
           <kbd>1</kbd> E · <kbd>2</kbd> N · <kbd>3</kbd> H · <kbd>4</kbd> SH
         </p>
         <div style="text-align:center;">
-          <button id="howto-start" type="button">→ GAME START ←</button>
+          <button id="howto-start" type="button">ゲームスタート</button>
         </div>
       </div>
     </div>
@@ -446,7 +847,7 @@
     <div id="title" class="ui hidden">
       <div class="panel">
         <h2>草の根防衛ユニット X</h2>
-        <p style="font-size:0.78rem;color:#8aaa78;margin:-4px 0 8px;">ver.4.2 · 2.5D</p>
+        <p style="font-size:0.78rem;color:#8aaa78;margin:-4px 0 8px;">ver.4.3 · 2.5D</p>
         <p>
           浮遊メカで汚染を撃ち落とし、<br />
           種と知恵で世界を緑に変えよう。
@@ -486,7 +887,19 @@
         <p id="end-stats"></p>
         <p class="end-msg" id="end-msg"></p>
         <p id="end-hint" class="end-hint" style="display:none;font-size:0.82rem;color:#c8d890;margin:10px 0 4px;line-height:1.65;border-top:1px solid #3a5a30;padding-top:10px;"></p>
+        <!-- LOSE 専用：もう一度 -->
         <button id="again" type="button">もう一度</button>
+        <!-- クリア専用：END / RECEIVE ORDERS の2択 -->
+        <div id="clear-choices" class="clear-choices hidden" role="group" aria-label="防衛成功の選択">
+          <button id="clear-end" type="button" class="clear-choice" data-choice="end">
+            <span class="clear-choice-ja" style="font-size:0.88rem;line-height:1.35;">地上編エンディングへ</span>
+          </button>
+          <button id="clear-orders" type="button" class="clear-choice" data-choice="orders">
+            <span class="clear-choice-en">RECEIVE ORDERS</span>
+            <span class="clear-choice-ja">緊急指令受信！</span>
+          </button>
+        </div>
+        <p id="clear-keys-hint" class="hidden"><kbd>←</kbd><kbd>→</kbd> / <kbd>A</kbd><kbd>D</kbd> 選択 · <kbd>Enter</kbd> 決定</p>
       </div>
     </div>
 
@@ -496,16 +909,60 @@
           <img id="void-img" src="VOID.png" alt="THE VOID" />
           <div class="void-dim"></div>
           <div class="void-text">
-            <p class="void-line">次なるステージへ… to be continued</p>
-            <p class="void-line void-sub">構想・開発中！</p>
+            <p class="void-line">鋭意制作中！</p>
+            <p class="void-line void-sub">To Be Continued</p>
           </div>
         </div>
         <button id="void-end-btn" type="button">END</button>
+        <p id="void-end-hint"><kbd>Enter</kbd> でタイトルへ</p>
+      </div>
+    </div>
+
+    <div id="ground-ending" class="ui hidden">
+      <div class="ground-ending-panel">
+        <div class="ground-ending-art">
+          <img id="ground-ending-img" src="life_tower_ending.png" alt="LIFE TOWER" />
+        </div>
+        <button id="ground-ending-btn" type="button">
+          <span class="ge-en">END</span>
+          <span class="ge-ja">最初の画面に戻る</span>
+        </button>
+        <p id="ground-ending-hint"><kbd>Enter</kbd> でタイトルへ</p>
+      </div>
+    </div>
+
+    <div id="emergency" class="ui hidden">
+      <div class="emergency-panel">
+        <div class="emergency-frame">
+          <img id="emergency-img" src="EMERGENCY.png" alt="緊急指令" />
+        </div>
+        <button id="emergency-go" type="button">GO!</button>
+        <p id="emergency-sub">軌道へ発進！</p>
+      </div>
+    </div>
+
+    <div id="newmission" class="ui hidden">
+      <div class="newmission-panel">
+        <div class="newmission-frame">
+          <img id="newmission-img" src="NEWMISSION.png" alt="NEW MISSION" />
+        </div>
+        <button id="newmission-ok" type="button">了解</button>
+      </div>
+    </div>
+
+    <div id="dock" class="ui hidden">
+      <div class="dock-panel">
+        <div id="dock-stage">
+          <canvas id="dockCanvas" width="960" height="720"></canvas>
+          <img id="dock-assembled" class="dock-assembled" src="assembled_ship.jpg" alt="Assembled craft" />
+          <div id="dock-flash"></div>
+        </div>
+        <p id="dock-status">DOCKING SEQUENCE</p>
       </div>
     </div>
   </div>
 
-  <p class="foot">スペースインベーダー風 · ver.4.2 · 2.5D · ユニットX · WAVE1〜8 · Pでポーズ</p>
+  <p class="foot">スペースインベーダー風 · ver.4.3 · 2.5D · ユニットX · WAVE1〜8 · Pでポーズ</p>
 
   <script>
 (() => {
@@ -540,33 +997,80 @@
   const endPoster = document.getElementById("end-poster");
   const endFrame = document.getElementById("end-frame");
   const voidEndEl = document.getElementById("void-end");
+  const groundEndingEl = document.getElementById("ground-ending");
+  const groundEndingImg = document.getElementById("ground-ending-img");
+  const groundEndingBtn = document.getElementById("ground-ending-btn");
   const voidImg = document.getElementById("void-img");
+  const emergencyEl = document.getElementById("emergency");
+  const emergencyImg = document.getElementById("emergency-img");
+  const emergencyGoBtn = document.getElementById("emergency-go");
+  const newmissionEl = document.getElementById("newmission");
+  const newmissionImg = document.getElementById("newmission-img");
+  const dockEl = document.getElementById("dock");
+  const dockCanvas = document.getElementById("dockCanvas");
+  const dockCtx = dockCanvas ? dockCanvas.getContext("2d") : null;
+  const dockAssembled = document.getElementById("dock-assembled");
+  const dockFlashEl = document.getElementById("dock-flash");
+  const dockStatusEl = document.getElementById("dock-status");
+  const againBtn = document.getElementById("again");
+  const clearChoicesEl = document.getElementById("clear-choices");
+  const clearEndBtn = document.getElementById("clear-end");
+  const clearOrdersBtn = document.getElementById("clear-orders");
+  const clearKeysHint = document.getElementById("clear-keys-hint");
+  /** クリア2択：0=地上編エンディング / 1=RECEIVE ORDERS（既定は右＝指令受信） */
+  let clearChoiceIndex = 1;
   const opPoster = document.getElementById("op-poster");
   const opDrama = document.getElementById("op-drama");
 
-  /** オープニングストーリー（ENTER で次へ）※画像はゲームフォルダ直下 */
+  /**
+   * オープニング画像（ファイル名は現状維持）
+   * 0: タイトル（スタート／Enter。Enter連打→イージー即本編）
+   * 1〜最終: 3連オープニング（自動1.8秒。2枚目以降スキップ→説明画面。最終は NEXT）
+   */
   const OPENING_SLIDES = [
     { title: "Grassroots Begin", image: "GGDOP0.png" },
     { title: "THEY TOOK EVERYTHING", image: "GGDOP1.png" },
     { title: "WE FOUGHT BACK", image: "GGDOP2.png" },
     { title: "DEFEND THE SEED", image: "GGDOP3.png" },
   ];
+  const OPENING_AUTO_MS = 1800;
+  /** タイトルで Enter 連打判定の窓（ms） */
+  const TITLE_ENTER_MASH_MS = 320;
   let openingStep = 0;
+  let openingTimer = null;
+  let titleEnterCount = 0;
+  let titleEnterDebounce = null;
+  const opSkipBtn = document.getElementById("op-skip");
+  const opStartBtn = document.getElementById("op-start");
+  const opHintEl = document.getElementById("op-hint");
 
-  function loadImg(src, el) {
-    const img = new Image();
-    img.onload = () => {
-      if (el) {
-        el.src = src;
-        el.classList.add("show");
-      }
-    };
-    img.onerror = () => {
-      if (el) el.classList.remove("show");
-    };
-    img.src = src;
-    return img;
+  function isOpeningTitleSlide() {
+    return openingStep === 0;
   }
+  /** 3連オープニング（タイトル以外） */
+  function isOpeningStorySlide() {
+    return openingStep >= 1;
+  }
+  function isOpeningLastSlide() {
+    return openingStep >= OPENING_SLIDES.length - 1;
+  }
+  /** 3連オープニング（最終以外）：スキップ表示。最終は「説明画面へ」 */
+  function isOpeningSkipSlide() {
+    return isOpeningStorySlide() && !isOpeningLastSlide();
+  }
+  /** 自動進行する枚（タイトル・最終以外） */
+  function isOpeningAutoSlide() {
+    return isOpeningStorySlide() && !isOpeningLastSlide();
+  }
+
+  function clearTitleEnterDebounce() {
+    if (titleEnterDebounce != null) {
+      clearTimeout(titleEnterDebounce);
+      titleEnterDebounce = null;
+    }
+    titleEnterCount = 0;
+  }
+
   // オープニング画像を先読み（表示切替は applyOpeningSlide）
   OPENING_SLIDES.forEach((s) => {
     const img = new Image();
@@ -576,8 +1080,14 @@
   imgWin.src = "CLEAR.png";
   const imgFail = new Image();
   imgFail.src = "LOSE.png";
-  const imgVoid = new Image();
-  imgVoid.src = "VOID.png";
+  const imgVoidPre = new Image();
+  imgVoidPre.src = "VOID.png";
+  const imgEmergency = new Image();
+  imgEmergency.src = "EMERGENCY.png";
+  const imgNewMission = new Image();
+  imgNewMission.src = "NEWMISSION.png";
+  const imgAssembledPre = new Image();
+  imgAssembledPre.src = "assembled_ship.jpg";
 
   const keys = {};
   let mode = "opening";
@@ -772,6 +1282,7 @@
     "連射・三連弾は上を横切る敵を倒したときだけ落ちる。効果は短い。",
     "知恵の実を集めると都市が徐々に発展する。一度できたら戻らない。",
     "スモッグが多いと画面が霞む。倒すと少し晴れる。",
+    "モード切替は説明画面で切り替える。",
   ];
   /** 敗北ヒントの順番インデックス（敗北のたびに次へ） */
   let loseHintIndex = 0;
@@ -801,6 +1312,23 @@
     } catch (_) {
       audioOk = false;
     }
+  }
+
+  /**
+   * AudioContext を走行状態にする（自動再生制限対策）。
+   * 完了後に SE を鳴らすと「音が遅れる」を防げる。
+   */
+  function resumeAudio() {
+    ensureAudio();
+    if (!audioOk || !actx) return Promise.resolve(false);
+    if (actx.state === "running") return Promise.resolve(true);
+    try {
+      const p = actx.resume();
+      if (p && typeof p.then === "function") {
+        return p.then(() => actx.state === "running").catch(() => false);
+      }
+    } catch (_) {}
+    return Promise.resolve(actx.state === "running");
   }
 
   function beep(freq, dur, type, vol, slide) {
@@ -1119,6 +1647,136 @@
     setTimeout(() => beep(35, 0.4, "square", 0.1, 0.5), 40);
     setTimeout(() => beep(80, 0.2, "triangle", 0.06), 120);
   }
+  /**
+   * 軌道発進：バン！衝撃（即アタック）。AudioContext 走行中を前提。
+   * setTimeout 遅延なしで最初の衝撃を currentTime から鳴らす。
+   */
+  function sfxLaunchBoom() {
+    if (!audioOk || !actx) {
+      ensureAudio();
+      if (!audioOk || !actx) return;
+    }
+    try {
+      const t0 = actx.currentTime;
+      // 低音ドカン（即立ち上がり）
+      const o1 = actx.createOscillator();
+      const g1 = actx.createGain();
+      o1.type = "sawtooth";
+      o1.frequency.setValueAtTime(90, t0);
+      o1.frequency.exponentialRampToValueAtTime(32, t0 + 0.42);
+      g1.gain.setValueAtTime(0.001, t0);
+      g1.gain.linearRampToValueAtTime(0.18, t0 + 0.006);
+      g1.gain.exponentialRampToValueAtTime(0.001, t0 + 0.5);
+      o1.connect(g1);
+      g1.connect(actx.destination);
+      o1.start(t0);
+      o1.stop(t0 + 0.52);
+
+      // 中域の打撃
+      const o2 = actx.createOscillator();
+      const g2 = actx.createGain();
+      o2.type = "square";
+      o2.frequency.setValueAtTime(160, t0);
+      o2.frequency.exponentialRampToValueAtTime(45, t0 + 0.28);
+      g2.gain.setValueAtTime(0.001, t0);
+      g2.gain.linearRampToValueAtTime(0.12, t0 + 0.005);
+      g2.gain.exponentialRampToValueAtTime(0.001, t0 + 0.35);
+      o2.connect(g2);
+      g2.connect(actx.destination);
+      o2.start(t0);
+      o2.stop(t0 + 0.38);
+
+      // 残響（わずかに後）
+      const o3 = actx.createOscillator();
+      const g3 = actx.createGain();
+      o3.type = "triangle";
+      o3.frequency.setValueAtTime(110, t0 + 0.04);
+      o3.frequency.exponentialRampToValueAtTime(50, t0 + 0.35);
+      g3.gain.setValueAtTime(0.001, t0 + 0.04);
+      g3.gain.linearRampToValueAtTime(0.07, t0 + 0.05);
+      g3.gain.exponentialRampToValueAtTime(0.001, t0 + 0.4);
+      o3.connect(g3);
+      g3.connect(actx.destination);
+      o3.start(t0 + 0.04);
+      o3.stop(t0 + 0.42);
+    } catch (_) {
+      // フォールバック
+      beep(70, 0.45, "sawtooth", 0.16, 0.25);
+      beep(45, 0.55, "square", 0.12, 0.35);
+    }
+  }
+
+  /**
+   * 緊急指令サイレン：短い鋸波「うー」を約0.5秒間隔でループ。
+   * stopSiren() で停止。GO! などで画面を離れるまで鳴る。
+   */
+  let sirenOn = false;
+  let sirenTimer = null;
+  let sirenNodes = [];
+
+  function stopSiren() {
+    sirenOn = false;
+    if (sirenTimer != null) {
+      clearTimeout(sirenTimer);
+      sirenTimer = null;
+    }
+    for (let i = 0; i < sirenNodes.length; i++) {
+      try { sirenNodes[i].stop(); } catch (_) {}
+    }
+    sirenNodes = [];
+  }
+
+  function playSirenWhoop() {
+    if (!sirenOn || !audioOk || !actx) return;
+    try {
+      const t0 = actx.currentTime;
+      const o = actx.createOscillator();
+      const g = actx.createGain();
+      o.type = "sawtooth";
+      // 警告音「うー」：即立ち上がり → 下降
+      o.frequency.setValueAtTime(720, t0);
+      o.frequency.exponentialRampToValueAtTime(300, t0 + 0.34);
+      g.gain.setValueAtTime(0.001, t0);
+      g.gain.linearRampToValueAtTime(0.08, t0 + 0.008);
+      g.gain.setValueAtTime(0.065, t0 + 0.22);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.4);
+      o.connect(g);
+      g.connect(actx.destination);
+      o.start(t0);
+      o.stop(t0 + 0.44);
+      sirenNodes.push(o);
+      o.onended = () => {
+        const ix = sirenNodes.indexOf(o);
+        if (ix >= 0) sirenNodes.splice(ix, 1);
+      };
+    } catch (_) {}
+  }
+
+  /**
+   * サイレン開始。resume 完了後に鳴らす（遅延防止）。
+   * 既に running なら即再生。
+   */
+  function startSiren() {
+    stopSiren();
+    sirenOn = true;
+    const begin = () => {
+      if (!sirenOn) return;
+      playSirenWhoop();
+      sirenTimer = setTimeout(function tick() {
+        if (!sirenOn) return;
+        playSirenWhoop();
+        sirenTimer = setTimeout(tick, 500);
+      }, 500);
+    };
+    resumeAudio().then((ok) => {
+      if (!sirenOn) return;
+      if (ok) begin();
+      else {
+        // resume 失敗時も一度だけ試行
+        try { begin(); } catch (_) {}
+      }
+    });
+  }
   /** 稲妻：ピカゴロゴロゴロ + バリバリバリバリ */
   function sfxThunder() {
     beep(1400, 0.04, "square", 0.08);
@@ -1289,10 +1947,10 @@
         e.preventDefault();
       }
     }
-    // オープニング：ENTER で次スライド／説明画面へ
-    if (mode === "opening" && (e.code === "Enter" || e.key === "Enter")) {
+    // オープニング：タイトル／最終＝スタート、中間＝スキップ
+    if (mode === "opening" && (e.code === "Enter" || e.key === "Enter" || e.code === "Space")) {
       e.preventDefault();
-      advanceOpening();
+      handleOpeningConfirm();
       return;
     }
     // 説明画面：ENTER でタタタン♪ → ゲーム開始
@@ -1307,17 +1965,60 @@
       start();
       return;
     }
-    // クリア画面：ENTER → 隠し画面（「もう一度」は別経路）
-    if (mode === "clear" && (e.code === "Enter" || e.key === "Enter")) {
+    // LOSE：ENTER で「もう一度」（マウスも可）
+    if (mode === "over" && (e.code === "Enter" || e.key === "Enter")) {
       e.preventDefault();
-      showVoidEnd();
+      restartFromLose();
       return;
     }
-    // 隠し画面：ENTER → オープニングへ
-    if (mode === "void" && (e.code === "Enter" || e.key === "Enter")) {
+    // クリア画面：←→ / A D で選択、Enter で決定
+    if (mode === "clear") {
+      if (e.code === "ArrowLeft" || e.code === "KeyA" || e.key === "a" || e.key === "A" || e.key === "ArrowLeft") {
+        e.preventDefault();
+        setClearChoice(0);
+        return;
+      }
+      if (e.code === "ArrowRight" || e.code === "KeyD" || e.key === "d" || e.key === "D" || e.key === "ArrowRight") {
+        e.preventDefault();
+        setClearChoice(1);
+        return;
+      }
+      if (e.code === "Enter" || e.key === "Enter") {
+        e.preventDefault();
+        confirmClearChoice();
+        return;
+      }
+    }
+    // 地上編エンディング：Enter でタイトル（アクセス）画面へ
+    if (mode === "ground-ending" && (e.code === "Enter" || e.key === "Enter")) {
+      e.preventDefault();
+      leaveGroundEndingToTitle();
+      return;
+    }
+    // 緊急指令：ENTER / GO! → 爆音 → NEW MISSION
+    if (mode === "emergency" && (e.code === "Enter" || e.key === "Enter")) {
+      e.preventDefault();
+      goToNewMission();
+      return;
+    }
+    // NEW MISSION：ENTER / 了解 → ドッキングシーケンス
+    if (mode === "newmission" && (e.code === "Enter" || e.key === "Enter")) {
       e.preventDefault();
       sfxConfirm();
-      showOpening();
+      showDockSequence();
+      return;
+    }
+    // ドッキング演出中は自動進行（キー操作なし）
+    if (mode === "dock") {
+      if (e.code === "Enter" || e.key === "Enter" || e.code === "Space") {
+        e.preventDefault();
+      }
+      return;
+    }
+    // VOID 仮エンディング：Enter → タイトル（アクセス）画面
+    if (mode === "void" && (e.code === "Enter" || e.key === "Enter")) {
+      e.preventDefault();
+      leaveVoidEndToTitle();
       return;
     }
   });
@@ -3267,9 +3968,12 @@
     mode = win ? "clear" : "over";
     paused = false;
     stopWaitBgm();
+    hideEmergency();
+    hideNewMission();
+    hideDock();
     const endHint = document.getElementById("end-hint");
-    // Greening resets on player destroy (loss). Keep display until restart.
-    endTitle.textContent = win ? "防衛成功" : "防衛失敗…";
+
+    endTitle.textContent = win ? "防衛成功" : "防衛失敗 / YOU LOSE";
     endTitle.style.color = win ? "#8fd060" : "#d08060";
     const diffTag =
       difficulty === "easy" ? "EASY" :
@@ -3281,13 +3985,38 @@
       (player.rapid ? " · ⚡" : "") +
       (player.triple ? " · ≡" : "") +
       (player.shield ? ` · 🛡${player.shield}` : "");
+
+    // 先に完全に隠してから画像を差し替える（一瞬のクリア画面フラッシュ防止）
+    endPoster.classList.remove("show", "fail");
     if (endFrame) endFrame.classList.remove("fail");
-    endPoster.classList.remove("fail");
+    endPoster.removeAttribute("src");
+    endPoster.alt = win ? "CLEAR" : "LOSE";
+
+    const targetSrc = win ? "CLEAR.png" : "LOSE.png";
+    const applyPoster = () => {
+      endPoster.src = targetSrc;
+      endPoster.classList.add("show");
+      if (!win) {
+        if (endFrame) endFrame.classList.add("fail");
+        endPoster.classList.add("fail");
+      }
+    };
+
+    const pre = win ? imgWin : imgFail;
+    if (pre && pre.complete && pre.naturalWidth > 0) {
+      applyPoster();
+    } else {
+      const tmp = new Image();
+      tmp.onload = applyPoster;
+      tmp.onerror = applyPoster;
+      tmp.src = targetSrc;
+    }
+
+    // クリア：2択（END / RECEIVE ORDERS） / LOSE：従来の「もう一度」
+    setupEndButtons(win);
+
     if (win) {
       endMsg.textContent = "草の根の知恵で、環境破壊を跳ね返す";
-      endPoster.alt = "CLEAR";
-      endPoster.src = "CLEAR.png";
-      endPoster.classList.add("show");
       if (endHint) {
         endHint.style.display = "none";
         endHint.textContent = "";
@@ -3295,11 +4024,6 @@
       sfxWin();
     } else {
       endMsg.textContent = "まだ終わらない。草の根から、もう一度。";
-      endPoster.alt = "LOSE";
-      endPoster.src = "LOSE.png";
-      endPoster.classList.add("show");
-      if (endFrame) endFrame.classList.add("fail");
-      endPoster.classList.add("fail");
       if (endHint) {
         endHint.style.display = "block";
         const tip = LOSE_HINTS[loseHintIndex % LOSE_HINTS.length];
@@ -3307,13 +4031,66 @@
         endHint.textContent = "ヒント：" + tip;
       }
       sfxLose();
-      // Reset greening state on destruction (next game starts fresh via resetGame)
       greenProgress = 0;
       groundLevel = 0;
     }
     endEl.classList.remove("hidden");
   }
 
+  /** クリア2択 or LOSE 1ボタンの表示切替 */
+  function setupEndButtons(win) {
+    if (win) {
+      if (againBtn) againBtn.style.display = "none";
+      if (clearChoicesEl) clearChoicesEl.classList.remove("hidden");
+      if (clearKeysHint) clearKeysHint.classList.remove("hidden");
+      clearChoiceIndex = 1; // 既定：緊急指令受信
+      updateClearChoiceHighlight();
+    } else {
+      if (againBtn) {
+        againBtn.style.display = "";
+        againBtn.textContent = "もう一度";
+      }
+      if (clearChoicesEl) clearChoicesEl.classList.add("hidden");
+      if (clearKeysHint) clearKeysHint.classList.add("hidden");
+      if (clearEndBtn) clearEndBtn.classList.remove("selected");
+      if (clearOrdersBtn) clearOrdersBtn.classList.remove("selected");
+    }
+  }
+
+  function resetEndButtonsToLoseDefault() {
+    if (againBtn) {
+      againBtn.style.display = "";
+      againBtn.textContent = "もう一度";
+    }
+    if (clearChoicesEl) clearChoicesEl.classList.add("hidden");
+    if (clearKeysHint) clearKeysHint.classList.add("hidden");
+    if (clearEndBtn) clearEndBtn.classList.remove("selected");
+    if (clearOrdersBtn) clearOrdersBtn.classList.remove("selected");
+  }
+
+  function setClearChoice(index) {
+    clearChoiceIndex = index === 0 ? 0 : 1;
+    updateClearChoiceHighlight();
+  }
+
+  function updateClearChoiceHighlight() {
+    if (clearEndBtn) clearEndBtn.classList.toggle("selected", clearChoiceIndex === 0);
+    if (clearOrdersBtn) clearOrdersBtn.classList.toggle("selected", clearChoiceIndex === 1);
+  }
+
+  /** クリア画面の決定（左→地上編エンディング / 右→緊急指令） */
+  function confirmClearChoice() {
+    if (mode !== "clear") return;
+    ensureAudio();
+    if (actx && actx.state === "suspended") {
+      try { actx.resume(); } catch (_) {}
+    }
+    if (clearChoiceIndex === 0) {
+      showGroundEnding();
+    } else {
+      showEmergency();
+    }
+  }
   // —— Drawing ——
   // 16bit風・岩山（固定シード版）
   function drawRockyMountain(ctx, baseX, baseY, width, height, seed = 1) {
@@ -6797,67 +7574,82 @@
   function drawHUD() {
     ctx.fillStyle = "rgba(10, 20, 14, 0.82)";
     ctx.fillRect(0, 0, W, 36);
-    ctx.font = "12px 'Segoe UI', Meiryo, sans-serif";
-    ctx.fillStyle = "#c8e0c0";
-    ctx.textAlign = "left";
-    ctx.fillText("SCORE " + score, 8, 22);
-    ctx.fillText("WAVE " + wave + "/" + MAX_WAVE, 100, 22);
-    ctx.fillText("S:" + seeds + " W:" + wisdom, 178, 22);
-    ctx.fillText("緑" + Math.round(greenProgress * 100) + "%", 255, 22);
-    // 都市化段階（知恵の実 urbanStageOf 0〜3）
-    ctx.fillStyle = "#b8c0c8";
-    ctx.fillText("都市" + urbanStageOf(), 312, 22);
+    ctx.font = "11px 'Segoe UI', Meiryo, sans-serif";
+    ctx.textBaseline = "middle";
+    const y = 18;
+    const gap = 7;
 
-    let px = 362;
-    if (player.rapid) {
-      ctx.fillStyle = "#e0c040";
-      ctx.fillText("⚡", px, 22);
-      px += 16;
-    }
-    if (player.triple) {
-      ctx.fillStyle = "#c090e0";
-      ctx.fillText("≡", px, 22);
-      px += 16;
-    }
-    if (player.shield > 0) {
-      ctx.fillStyle = "#60c0e0";
-      ctx.fillText("🛡" + player.shield, px, 22);
-    }
-    if (wave >= 4) {
-      ctx.fillStyle = "#e0c060";
-      ctx.fillText("災害", W - 108, 22);
-    }
-    if (enrageActive && enemies.length > 0 && enemies.length <= 10) {
-      ctx.fillStyle = "#e08050";
-      ctx.fillText("強化×" + enemies.length, W - 170, 22);
-    }
+    // —— 右端クラスタ（残機 → 難易度 → 強化 → 災害）を先に測って境界を確保 ——
     const dShort =
       difficulty === "easy" ? "E" :
       difficulty === "hard" ? "H" :
       difficulty === "super" ? "SH" : "N";
-    ctx.fillStyle =
+    const dColor =
       difficulty === "super" ? "#e05050" :
       difficulty === "hard" ? "#e09060" :
       difficulty === "easy" ? "#80d0a0" : "#a0c090";
-    ctx.fillText(dShort, W - 132, 22);
-    if (freezeT > 0) {
-      ctx.fillStyle = "#d080ff";
-      ctx.fillText("移停" + Math.ceil(freezeT / 60) + "s", W / 2 - 36, 22);
-    }
-    if (muteShootT > 0) {
-      ctx.fillStyle = "#ff7070";
-      ctx.fillText("射撃×" + (muteShootT / 60).toFixed(1) + "s", W / 2 + 20, 22);
-    }
+    const showEnrage = enrageActive && enemies.length > 0 && enemies.length <= 10;
+    const enrageText = showEnrage ? ("強化×" + enemies.length) : "";
+    const showDisaster = wave >= 4;
+    const lifeSlots = Math.max(1, player.lives | 0);
+    const lifeBlockW = lifeSlots * 14 + 4;
+    let rightNeed = lifeBlockW + gap;
+    rightNeed += ctx.measureText(dShort).width + gap;
+    if (showEnrage) rightNeed += ctx.measureText(enrageText).width + gap;
+    if (showDisaster) rightNeed += ctx.measureText("災害").width + gap;
+    const rightEdge = Math.max(W * 0.42, W - rightNeed); // 左列が食い込まない上限
 
+    // —— 左から横並び（measureText で間隔確保・固定座標を使わない）——
+    ctx.textAlign = "left";
+    let x = 6;
+    function hudItem(text, color) {
+      if (!text) return;
+      const tw = ctx.measureText(text).width;
+      if (x + tw > rightEdge - 2) return; // 右クラスタと重ねない
+      ctx.fillStyle = color;
+      ctx.fillText(text, x, y);
+      x += tw + gap;
+    }
+    hudItem("SCORE " + score, "#c8e0c0");
+    hudItem("WAVE " + wave + "/" + MAX_WAVE, "#c8e0c0");
+    hudItem("S:" + seeds + " W:" + wisdom, "#c8e0c0");
+    hudItem("緑" + Math.round(greenProgress * 100) + "%", "#c8e0c0");
+    hudItem("都市" + urbanStageOf(), "#b8c0c8");
+    if (player.rapid) hudItem("⚡", "#e0c040");
+    if (player.triple) hudItem("≡", "#c090e0");
+    if (player.shield > 0) hudItem("🛡" + player.shield, "#60c0e0");
+    // 状態異常は都市・強化の右隣（左列の続き）に独立配置
+    if (freezeT > 0) hudItem("移停" + Math.ceil(freezeT / 60) + "s", "#d080ff");
+    if (muteShootT > 0) hudItem("射撃×" + (muteShootT / 60).toFixed(1) + "s", "#ff7070");
+
+    // —— 右端：残機（▲）を右端固定、その左へ難易度・強化・災害 ——
     ctx.fillStyle = "#5a9e48";
     for (let i = 0; i < player.lives; i++) {
+      const cx = W - 10 - i * 14;
       ctx.beginPath();
-      ctx.moveTo(W - 16 - i * 16, 10);
-      ctx.lineTo(W - 8 - i * 16, 24);
-      ctx.lineTo(W - 24 - i * 16, 24);
+      ctx.moveTo(cx, 9);
+      ctx.lineTo(cx + 6, 26);
+      ctx.lineTo(cx - 6, 26);
       ctx.closePath();
       ctx.fill();
     }
+    ctx.textAlign = "right";
+    let rx = W - lifeBlockW - 2;
+    ctx.fillStyle = dColor;
+    ctx.fillText(dShort, rx, y);
+    rx -= ctx.measureText(dShort).width + gap;
+    if (showEnrage) {
+      ctx.fillStyle = "#e08050";
+      ctx.fillText(enrageText, rx, y);
+      rx -= ctx.measureText(enrageText).width + gap;
+    }
+    if (showDisaster) {
+      ctx.fillStyle = "#e0c060";
+      ctx.fillText("災害", rx, y);
+    }
+
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
 
     if (toastT > 0 && toast) {
       const a = Math.min(1, toastT / 20);
@@ -7003,7 +7795,7 @@
       // 雨は HUD の上に重ねる（操作・緑化は止めない）
       RainSystem.draw(ctx);
       drawPause();
-    } else if (mode === "title" || mode === "opening" || mode === "howto" || mode === "void") {
+    } else if (mode === "title" || mode === "opening" || mode === "howto" || mode === "void" || mode === "ground-ending" || mode === "emergency" || mode === "newmission" || mode === "dock") {
       t++;
       // プレビューは固定の緑化ステップ（毎フレーム rebuildRoots しない）
       const saveG = greenProgress;
@@ -7034,11 +7826,123 @@
     requestAnimationFrame(loop);
   }
 
+  function clearOpeningTimer() {
+    if (openingTimer != null) {
+      clearTimeout(openingTimer);
+      openingTimer = null;
+    }
+  }
+
+  function scheduleOpeningAuto() {
+    clearOpeningTimer();
+    // 3連の最終以外のみ自動（タイトル・最終は待機）
+    if (mode !== "opening" || !isOpeningAutoSlide()) return;
+    openingTimer = setTimeout(() => {
+      openingTimer = null;
+      if (mode !== "opening" || !isOpeningAutoSlide()) return;
+      advanceOpening(false);
+    }, OPENING_AUTO_MS);
+  }
+
+  /** タイトルから3連オープニングへ */
+  function leaveTitleToStory() {
+    if (mode !== "opening" || !isOpeningTitleSlide()) return;
+    clearTitleEnterDebounce();
+    advanceOpening(true);
+  }
+
+  /**
+   * タイトル操作。
+   * fromButton=true: スタートクリック → 3連へ
+   * Enter: 単発は少し待って3連へ／連打はイージーで本編直スタート
+   */
+  function handleTitleStart(fromButton) {
+    if (mode !== "opening" || !isOpeningTitleSlide()) return;
+    ensureAudio();
+    if (actx && actx.state === "suspended") {
+      try { actx.resume(); } catch (_) {}
+    }
+    if (fromButton) {
+      leaveTitleToStory();
+      return;
+    }
+    // Enter 連打判定
+    titleEnterCount++;
+    if (titleEnterCount >= 2) {
+      clearTitleEnterDebounce();
+      setDifficulty("easy");
+      try { sfxConfirm(); } catch (_) {}
+      start();
+      return;
+    }
+    if (titleEnterDebounce != null) clearTimeout(titleEnterDebounce);
+    titleEnterDebounce = setTimeout(() => {
+      titleEnterDebounce = null;
+      titleEnterCount = 0;
+      if (mode === "opening" && isOpeningTitleSlide()) {
+        leaveTitleToStory();
+      }
+    }, TITLE_ENTER_MASH_MS);
+  }
+
+  /** 3連オープニング中：説明画面へジャンプ */
+  function jumpToHowtoFromOpening() {
+    if (mode !== "opening" || !isOpeningStorySlide()) return;
+    clearOpeningTimer();
+    ensureAudio();
+    if (actx && actx.state === "suspended") {
+      try { actx.resume(); } catch (_) {}
+    }
+    try { sfxConfirm(); } catch (_) {}
+    showHowto();
+  }
+
+  /** Enter / ボタンの確定処理 */
+  function handleOpeningConfirm() {
+    if (mode !== "opening") return;
+    if (isOpeningTitleSlide()) {
+      handleTitleStart(false);
+      return;
+    }
+    // 3連中（最終含む）：スキップ／NEXT／Enter → 説明画面
+    jumpToHowtoFromOpening();
+  }
+
   function applyOpeningSlide() {
     const slide = OPENING_SLIDES[openingStep] || OPENING_SLIDES[0];
+    const isTitle = isOpeningTitleSlide();
+    const isLast = isOpeningLastSlide();
+    const showSkip = isOpeningSkipSlide();
     if (opDrama) {
       opDrama.textContent = slide.title;
       opDrama.style.display = "";
+    }
+    // タイトル：スタート
+    // 3連（最終以外）：スキップ（THEY TOOK EVERYTHING 含む全枚）
+    // 最終：説明画面へ
+    if (opSkipBtn) {
+      if (showSkip) opSkipBtn.classList.remove("hidden");
+      else opSkipBtn.classList.add("hidden");
+    }
+    if (opStartBtn) {
+      if (isTitle) {
+        opStartBtn.textContent = "スタート";
+        opStartBtn.classList.remove("hidden");
+      } else if (isLast) {
+        opStartBtn.textContent = "説明画面へ";
+        opStartBtn.classList.remove("hidden");
+      } else {
+        opStartBtn.classList.add("hidden");
+      }
+    }
+    if (opHintEl) {
+      if (isTitle) {
+        opHintEl.textContent = "スタート = ENTER · 連打でイージー即開始";
+      } else if (isLast) {
+        opHintEl.textContent = "説明画面へ = ENTER";
+      } else {
+        opHintEl.textContent = "スキップ = ENTER · 約1.8秒で自動";
+      }
     }
     // 各スライドで GGDOP0〜3.png を枠内中央・縦横比維持で大きく表示
     if (opPoster) {
@@ -7059,37 +7963,637 @@
         opPoster.classList.add("show");
       }
     }
+    scheduleOpeningAuto();
   }
 
   function hideVoidEnd() {
     if (voidEndEl) voidEndEl.classList.add("hidden");
   }
 
-  /** クリア画面で ENTER → 隠し画面 VOID */
-  function showVoidEnd() {
+  function hideGroundEnding() {
+    if (groundEndingEl) groundEndingEl.classList.add("hidden");
+  }
+
+  /** 防衛成功 → 地上編エンディング（LIFE TOWER 画像） */
+  function showGroundEnding() {
     if (mode !== "clear") return;
-    mode = "void";
+    mode = "ground-ending";
     ensureAudio();
-    if (actx && actx.state === "suspended") actx.resume();
+    if (actx && actx.state === "suspended") {
+      try { actx.resume(); } catch (_) {}
+    }
+    try { sfxConfirm(); } catch (_) {}
     stopWaitBgm();
     stopOpeningBgm();
+    endEl.classList.add("hidden");
+    endPoster.classList.remove("show", "fail");
+    if (endFrame) endFrame.classList.remove("fail");
+    resetEndButtonsToLoseDefault();
+    hideVoidEnd();
+    hideEmergency();
+    hideNewMission();
+    hideDock();
+    if (howtoEl) howtoEl.classList.add("hidden");
+    titleEl.classList.add("hidden");
+    openingEl.classList.add("hidden");
+    if (groundEndingImg) groundEndingImg.src = "life_tower_ending.png";
+    if (groundEndingEl) groundEndingEl.classList.remove("hidden");
+  }
+
+  /** 地上編エンディング → ゲーム開始前のタイトル（アクセス）画面 */
+  function leaveGroundEndingToTitle() {
+    if (mode !== "ground-ending") return;
+    ensureAudio();
+    if (actx && actx.state === "suspended") {
+      try { actx.resume(); } catch (_) {}
+    }
+    try { sfxConfirm(); } catch (_) {}
+    hideGroundEnding();
+    hideVoidEnd();
+    hideEmergency();
+    hideNewMission();
+    hideDock();
+    endEl.classList.add("hidden");
+    endPoster.classList.remove("show", "fail");
+    if (endFrame) endFrame.classList.remove("fail");
+    resetEndButtonsToLoseDefault();
+    showOpening();
+  }
+
+  function hideEmergency() {
+    stopSiren();
+    if (emergencyEl) emergencyEl.classList.add("hidden");
+  }
+
+  function hideNewMission() {
+    if (newmissionEl) newmissionEl.classList.add("hidden");
+  }
+
+  // ========== ドッキング演出（docking-boss-test.html 一体移植） ==========
+  const DOCK_W = 960;
+  const DOCK_H = 720;
+  const DOCK_TOTAL = 17.5;
+  let dockAnimId = null;
+  let dockPhaseTimers = [];
+  let dockT0 = null;
+  let dockPhase = "idle"; // idle | dock | flash | ship | descend
+  const dockSfxFlags = {};
+
+  function dockLerp(a, b, t) { return a + (b - a) * t; }
+  function dockEaseInOut(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
+  function dockP(t, a, b) {
+    if (t < a) return 0;
+    if (t > b) return 1;
+    return dockEaseInOut((t - a) / (b - a));
+  }
+
+  const dockStars = Array.from({ length: 120 }, () => ({
+    x: Math.random() * DOCK_W,
+    y: Math.random() * DOCK_H * 0.68,
+    r: Math.random() * 1.5 + 0.2,
+    a: Math.random() * 0.8 + 0.2,
+  }));
+
+  function clearDockTimers() {
+    for (const id of dockPhaseTimers) clearTimeout(id);
+    dockPhaseTimers = [];
+  }
+  function dockLater(fn, ms) {
+    const id = setTimeout(fn, ms);
+    dockPhaseTimers.push(id);
+    return id;
+  }
+  function stopDockAnim() {
+    if (dockAnimId != null) {
+      cancelAnimationFrame(dockAnimId);
+      dockAnimId = null;
+    }
+    clearDockTimers();
+    dockT0 = null;
+    dockPhase = "idle";
+    for (const k in dockSfxFlags) delete dockSfxFlags[k];
+    if (dockFlashEl) dockFlashEl.style.opacity = "0";
+    if (dockAssembled) {
+      dockAssembled.style.display = "none";
+      dockAssembled.style.left = "50%";
+      dockAssembled.style.top = "38%";
+      dockAssembled.style.transform = "translate(-50%, -50%)";
+    }
+    if (dockCanvas) dockCanvas.style.display = "block";
+  }
+
+  function hideDock() {
+    stopDockAnim();
+    if (dockEl) dockEl.classList.add("hidden");
+  }
+
+  function setDockStatus(s) {
+    if (dockStatusEl) dockStatusEl.textContent = s;
+  }
+
+  function dockDrawStars(dctx) {
+    for (const s of dockStars) {
+      dctx.beginPath();
+      dctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      dctx.fillStyle = `rgba(190,220,255,${s.a})`;
+      dctx.fill();
+    }
+  }
+  function dockDrawEarth(dctx) {
+    const cy = DOCK_H + 55, r = 300;
+    const g = dctx.createRadialGradient(DOCK_W / 2, cy, r * 0.6, DOCK_W / 2, cy, r * 1.25);
+    g.addColorStop(0, "rgba(30,100,255,0)");
+    g.addColorStop(0.7, "rgba(20,80,220,0.12)");
+    g.addColorStop(1, "rgba(10,40,120,0)");
+    dctx.fillStyle = g;
+    dctx.beginPath();
+    dctx.arc(DOCK_W / 2, cy, r * 1.25, 0, Math.PI * 2);
+    dctx.fill();
+    dctx.beginPath();
+    dctx.arc(DOCK_W / 2, cy, r, 0, Math.PI * 2);
+    const pg = dctx.createLinearGradient(DOCK_W / 2, cy - r, DOCK_W / 2, cy + r);
+    pg.addColorStop(0, "#163878");
+    pg.addColorStop(0.5, "#0a2048");
+    pg.addColorStop(1, "#040c20");
+    dctx.fillStyle = pg;
+    dctx.fill();
+    dctx.strokeStyle = "rgba(60,150,255,0.5)";
+    dctx.lineWidth = 3;
+    dctx.beginPath();
+    dctx.arc(DOCK_W / 2, cy, r, Math.PI * 1.1, Math.PI * 1.9);
+    dctx.stroke();
+  }
+  function dockDrawSpaceX(dctx, x, y, s, glow) {
+    if (glow == null) glow = 1;
+    dctx.save();
+    dctx.translate(x, y);
+    dctx.scale(s, s);
+    dctx.shadowColor = `rgba(40,160,255,${0.45 * glow})`;
+    dctx.shadowBlur = 16 * glow;
+    dctx.fillStyle = "#1c222c";
+    dctx.strokeStyle = "#a0b4c8";
+    dctx.lineWidth = 2.2;
+    dctx.beginPath();
+    dctx.moveTo(-42, -8); dctx.lineTo(-28, -22); dctx.lineTo(28, -22); dctx.lineTo(42, -8);
+    dctx.lineTo(46, 6); dctx.lineTo(36, 20); dctx.lineTo(-36, 20); dctx.lineTo(-46, 6);
+    dctx.closePath();
+    dctx.fill(); dctx.stroke();
+    dctx.fillStyle = "#0c1018";
+    dctx.fillRect(-26, -14, 52, 24);
+    dctx.strokeStyle = "#4a6a88";
+    dctx.strokeRect(-26, -14, 52, 24);
+    dctx.strokeStyle = "#e8f0ff";
+    dctx.lineWidth = 4;
+    dctx.lineCap = "square";
+    dctx.beginPath();
+    dctx.moveTo(-16, -8); dctx.lineTo(16, 10);
+    dctx.moveTo(16, -8); dctx.lineTo(-16, 10);
+    dctx.stroke();
+    dctx.fillStyle = "#2a3448";
+    dctx.strokeStyle = "#7a90a8";
+    dctx.lineWidth = 1.8;
+    dctx.beginPath();
+    dctx.moveTo(-46, 0); dctx.lineTo(-58, 4); dctx.lineTo(-56, 16); dctx.lineTo(-42, 14);
+    dctx.closePath(); dctx.fill(); dctx.stroke();
+    dctx.beginPath();
+    dctx.moveTo(46, 0); dctx.lineTo(58, 4); dctx.lineTo(56, 16); dctx.lineTo(42, 14);
+    dctx.closePath(); dctx.fill(); dctx.stroke();
+    dctx.shadowBlur = 0;
+    const tg = dctx.createRadialGradient(0, 28, 2, 0, 28, 28);
+    tg.addColorStop(0, `rgba(80,200,255,${0.85 * glow})`);
+    tg.addColorStop(0.4, `rgba(30,120,255,${0.35 * glow})`);
+    tg.addColorStop(1, "rgba(10,40,120,0)");
+    dctx.fillStyle = tg;
+    dctx.beginPath();
+    dctx.ellipse(0, 26, 32, 12, 0, 0, Math.PI * 2);
+    dctx.fill();
+    dctx.fillStyle = "#2cf";
+    dctx.fillRect(-34, -16, 6, 4); dctx.fillRect(28, -16, 6, 4); dctx.fillRect(-8, 14, 16, 3);
+    dctx.fillStyle = "#e85818";
+    dctx.fillRect(-22, 16, 8, 3); dctx.fillRect(14, 16, 8, 3);
+    dctx.restore();
+  }
+  function dockDrawMainBooster(dctx, x, y, s, rot, flame) {
+    if (rot == null) rot = 0;
+    if (flame == null) flame = 1;
+    dctx.save();
+    dctx.translate(x, y);
+    dctx.rotate(rot);
+    dctx.scale(s, s);
+    dctx.fillStyle = "#252c38";
+    dctx.strokeStyle = "#8a9cb0";
+    dctx.lineWidth = 2.4;
+    dctx.beginPath();
+    dctx.moveTo(-32, -100); dctx.lineTo(32, -100); dctx.lineTo(42, -75); dctx.lineTo(42, 75);
+    dctx.lineTo(26, 108); dctx.lineTo(-26, 108); dctx.lineTo(-42, 75); dctx.lineTo(-42, -75);
+    dctx.closePath();
+    dctx.fill(); dctx.stroke();
+    dctx.fillStyle = "#080a10";
+    dctx.fillRect(-22, -48, 44, 96);
+    dctx.strokeStyle = "#3a5a7a";
+    dctx.lineWidth = 2;
+    dctx.strokeRect(-22, -48, 44, 96);
+    dctx.fillStyle = "#d05018";
+    dctx.fillRect(-38, -60, 6, 22); dctx.fillRect(32, -60, 6, 22);
+    dctx.fillRect(-38, 30, 6, 22); dctx.fillRect(32, 30, 6, 22);
+    dctx.fillStyle = "#1a2030";
+    dctx.beginPath();
+    dctx.moveTo(-16, -100); dctx.lineTo(16, -100); dctx.lineTo(10, -118); dctx.lineTo(-10, -118);
+    dctx.closePath(); dctx.fill();
+    dctx.fillStyle = "#28f";
+    for (let i = -4; i <= 4; i++) dctx.fillRect(-5, i * 14 - 24, 10, 5);
+    if (flame > 0.05) {
+      const fg = dctx.createLinearGradient(0, 108, 0, 108 + 65 * flame);
+      fg.addColorStop(0, `rgba(90,190,255,${0.95 * flame})`);
+      fg.addColorStop(0.35, `rgba(40,130,255,${0.55 * flame})`);
+      fg.addColorStop(1, "rgba(15,50,160,0)");
+      dctx.fillStyle = fg;
+      dctx.beginPath();
+      dctx.moveTo(-20, 108); dctx.lineTo(20, 108);
+      dctx.lineTo(10, 108 + 65 * flame); dctx.lineTo(-10, 108 + 65 * flame);
+      dctx.closePath(); dctx.fill();
+    }
+    dctx.restore();
+  }
+  function dockDrawSideBooster(dctx, x, y, s, side, flame) {
+    if (side == null) side = 1;
+    if (flame == null) flame = 1;
+    dctx.save();
+    dctx.translate(x, y);
+    dctx.scale(s * side, s);
+    dctx.fillStyle = "#283040";
+    dctx.strokeStyle = "#8094a8";
+    dctx.lineWidth = 2;
+    dctx.beginPath();
+    dctx.moveTo(-16, -78); dctx.lineTo(16, -78); dctx.lineTo(22, -55); dctx.lineTo(22, 62);
+    dctx.lineTo(12, 85); dctx.lineTo(-12, 85); dctx.lineTo(-22, 62); dctx.lineTo(-22, -55);
+    dctx.closePath();
+    dctx.fill(); dctx.stroke();
+    dctx.fillStyle = "#0a0e16";
+    dctx.fillRect(-10, -36, 20, 58);
+    dctx.fillStyle = "#c84818";
+    dctx.fillRect(-14, -48, 5, 14); dctx.fillRect(9, -48, 5, 14);
+    dctx.fillStyle = "#2af";
+    dctx.beginPath();
+    dctx.arc(0, -68, 6, 0, Math.PI * 2);
+    dctx.fill();
+    if (flame > 0.05) {
+      const fg = dctx.createLinearGradient(0, 85, 0, 85 + 48 * flame);
+      fg.addColorStop(0, `rgba(70,170,255,${0.9 * flame})`);
+      fg.addColorStop(1, "rgba(20,70,180,0)");
+      dctx.fillStyle = fg;
+      dctx.beginPath();
+      dctx.moveTo(-11, 85); dctx.lineTo(11, 85);
+      dctx.lineTo(6, 85 + 48 * flame); dctx.lineTo(-6, 85 + 48 * flame);
+      dctx.closePath(); dctx.fill();
+    }
+    dctx.restore();
+  }
+  function dockDrawHUD(dctx) {
+    dctx.strokeStyle = "rgba(40,120,200,0.4)";
+    dctx.lineWidth = 2;
+    const m = 18;
+    dctx.beginPath();
+    dctx.moveTo(m, m + 28); dctx.lineTo(m, m); dctx.lineTo(m + 28, m);
+    dctx.moveTo(DOCK_W - m - 28, m); dctx.lineTo(DOCK_W - m, m); dctx.lineTo(DOCK_W - m, m + 28);
+    dctx.moveTo(m, DOCK_H - m - 28); dctx.lineTo(m, DOCK_H - m); dctx.lineTo(m + 28, DOCK_H - m);
+    dctx.moveTo(DOCK_W - m - 28, DOCK_H - m); dctx.lineTo(DOCK_W - m, DOCK_H - m); dctx.lineTo(DOCK_W - m, DOCK_H - m - 28);
+    dctx.stroke();
+  }
+  function dockDrawScanlines(dctx) {
+    dctx.fillStyle = "rgba(0,0,0,0.1)";
+    for (let y = 0; y < DOCK_H; y += 3) dctx.fillRect(0, y, DOCK_W, 1);
+  }
+
+  function dockUpdate(t) {
+    let coreX = DOCK_W / 2, coreY = DOCK_H * 0.42, coreS = 0.95, coreGlow = 1;
+    let mainX = DOCK_W / 2 + 340;
+    let mainY = DOCK_H * 0.55;
+    let mainS = 0.28;
+    let mainRot = -0.45;
+    let mainFlame = 0.7;
+    let mainVis = dockP(t, 1.5, 2.4);
+    let sideLX = -150, sideRX = DOCK_W + 150, sideY = DOCK_H * 0.52, sideS = 0.45, sideFlame = 0.9, sideVis = 0;
+
+    if (t > 2.6) {
+      const a = dockP(t, 2.6, 8.4);
+      mainX = dockLerp(DOCK_W / 2 + 340, DOCK_W / 2, a);
+      mainY = dockLerp(DOCK_H * 0.55, DOCK_H * 0.38, a);
+      mainS = dockLerp(0.28, 1.10, a);
+      mainRot = dockLerp(-0.45, 0, a);
+      mainFlame = dockLerp(0.7, 0.35, a);
+    }
+    if (t > 5.5) {
+      const a = dockP(t, 5.5, 8.4);
+      coreY = dockLerp(DOCK_H * 0.42, DOCK_H * 0.38, a);
+      coreS = dockLerp(0.95, 0.48, a);
+      coreGlow = dockLerp(1, 0.55, a);
+    }
+    sideVis = dockP(t, 10.0, 10.9);
+    if (t > 10.2) {
+      const a = dockP(t, 10.3, 14.6);
+      sideLX = dockLerp(-160, DOCK_W / 2 - 100, a);
+      sideRX = dockLerp(DOCK_W + 160, DOCK_W / 2 + 100, a);
+      sideY = dockLerp(DOCK_H * 0.58, DOCK_H * 0.40, a);
+      sideS = dockLerp(0.35, 0.92, a);
+      sideFlame = dockLerp(1.15, 0.5, a);
+    }
+    if (t > 15.0) {
+      const a = dockP(t, 15.0, 16.8);
+      sideLX = dockLerp(DOCK_W / 2 - 100, DOCK_W / 2 - 80, a);
+      sideRX = dockLerp(DOCK_W / 2 + 100, DOCK_W / 2 + 80, a);
+      sideS = dockLerp(0.92, 0.98, a);
+      mainS = dockLerp(1.10, 1.15, a);
+      mainFlame = dockLerp(0.35, 0.75, a);
+      sideFlame = dockLerp(0.5, 0.85, a);
+    }
+    return {
+      core: { x: coreX, y: coreY, s: coreS, glow: coreGlow },
+      main: { x: mainX, y: mainY, s: mainS, rot: mainRot, flame: mainFlame, vis: mainVis },
+      side: { lx: sideLX, rx: sideRX, y: sideY, s: sideS, flame: sideFlame, vis: sideVis },
+    };
+  }
+
+  function dockRender(state) {
+    if (!dockCtx) return;
+    const dctx = dockCtx;
+    dctx.fillStyle = "#000";
+    dctx.fillRect(0, 0, DOCK_W, DOCK_H);
+    dockDrawStars(dctx);
+    dockDrawEarth(dctx);
+    if (state.side.vis > 0.04) {
+      dctx.globalAlpha = state.side.vis;
+      dockDrawSideBooster(dctx, state.side.lx, state.side.y, state.side.s, -1, state.side.flame);
+      dockDrawSideBooster(dctx, state.side.rx, state.side.y, state.side.s, 1, state.side.flame);
+      dctx.globalAlpha = 1;
+    }
+    if (state.main.vis > 0.04) {
+      dctx.globalAlpha = state.main.vis;
+      dockDrawMainBooster(dctx, state.main.x, state.main.y, state.main.s, state.main.rot, state.main.flame);
+      dctx.globalAlpha = 1;
+    }
+    dockDrawSpaceX(dctx, state.core.x, state.core.y, state.core.s, state.core.glow);
+    dockDrawHUD(dctx);
+    dockDrawScanlines(dctx);
+  }
+
+  function dockSfxOnce(key, fn) {
+    if (dockSfxFlags[key]) return;
+    dockSfxFlags[key] = true;
+    try { fn(); } catch (_) {}
+  }
+  function dockThrusterHum(dur, vol, fadeSec) {
+    if (!actx) return;
+    const c = actx;
+    const o = c.createOscillator();
+    const o2 = c.createOscillator();
+    const g = c.createGain();
+    o.type = "sawtooth"; o.frequency.value = 55;
+    o2.type = "sine"; o2.frequency.value = 110;
+    const v = vol || 0.06;
+    const fade = fadeSec != null ? fadeSec : 1.2;
+    g.gain.setValueAtTime(0.001, c.currentTime);
+    g.gain.linearRampToValueAtTime(v, c.currentTime + 0.35);
+    const fadeStart = Math.max(0.4, dur - fade);
+    g.gain.setValueAtTime(v, c.currentTime + fadeStart);
+    g.gain.linearRampToValueAtTime(0.001, c.currentTime + dur);
+    o.connect(g); o2.connect(g); g.connect(c.destination);
+    o.start(); o2.start();
+    o.stop(c.currentTime + dur + 0.05);
+    o2.stop(c.currentTime + dur + 0.05);
+  }
+  function dockShuuu(dur, vol) {
+    if (!actx) return;
+    const c = actx;
+    const t0 = c.currentTime;
+    const n = c.createBufferSource();
+    const len = Math.floor(c.sampleRate * dur);
+    const buf = c.createBuffer(1, len, c.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * 0.7;
+    n.buffer = buf;
+    const f = c.createBiquadFilter();
+    f.type = "bandpass";
+    f.frequency.setValueAtTime(1800, t0);
+    f.frequency.exponentialRampToValueAtTime(400, t0 + dur);
+    f.Q.value = 0.7;
+    const g = c.createGain();
+    const v = vol || 0.08;
+    g.gain.setValueAtTime(0.001, t0);
+    g.gain.linearRampToValueAtTime(v, t0 + 0.15);
+    g.gain.linearRampToValueAtTime(v * 0.55, t0 + dur * 0.45);
+    g.gain.linearRampToValueAtTime(0.001, t0 + dur);
+    n.connect(f); f.connect(g); g.connect(c.destination);
+    n.start(t0);
+    n.stop(t0 + dur + 0.05);
+  }
+  function dockTriggerSfx(t) {
+    if (t >= 2.7) dockSfxOnce("thrust", () => dockThrusterHum(5.85, 0.014, 0.35));
+    if (t >= 10.3) dockSfxOnce("side", () => dockThrusterHum(5.8, 0.006, 1.0));
+  }
+
+  function dockDoFlash() {
+    if (mode !== "dock") return;
+    dockPhase = "flash";
+    setDockStatus("FLASH");
+    if (dockFlashEl) dockFlashEl.style.opacity = "1";
+    dockLater(() => {
+      if (mode !== "dock") return;
+      if (dockFlashEl) dockFlashEl.style.opacity = "0";
+      if (dockCanvas) dockCanvas.style.display = "none";
+      if (dockAssembled) {
+        dockAssembled.src = "assembled_ship.jpg";
+        dockAssembled.style.display = "block";
+        dockAssembled.style.left = "50%";
+        dockAssembled.style.top = "38%";
+        dockAssembled.style.transform = "translate(-50%, -50%)";
+      }
+      setDockStatus("ブースター＋スペースX号 出現");
+      dockPhase = "ship";
+      dockLater(dockDoDescend, 900);
+    }, 280);
+  }
+
+  function dockDoDescend() {
+    if (mode !== "dock") return;
+    dockPhase = "descend";
+    setDockStatus("機体降下");
+    try { dockShuuu(2.2, 0.07); } catch (_) {}
+    if (dockAssembled) {
+      // force reflow so CSS transition runs
+      void dockAssembled.offsetWidth;
+      dockAssembled.style.left = "50%";
+      dockAssembled.style.top = "78%";
+      dockAssembled.style.transform = "translate(-50%, -50%) scale(0.7)";
+    }
+    dockLater(() => {
+      if (mode !== "dock") return;
+      setDockStatus("SEQUENCE COMPLETE");
+      showVoidEnd();
+    }, 2400);
+  }
+
+  /**
+   * NEW MISSION 了解後 → キャンバス・ドッキング演出 → 完了後 VOID
+   * （DOCK1〜6 静止画スライドは本線から外す）
+   */
+  function showDockSequence() {
+    if (mode !== "newmission" && mode !== "dock") return;
+    mode = "dock";
+    stopDockAnim();
+    hideNewMission();
+    hideEmergency();
+    hideVoidEnd();
+    hideGroundEnding();
+    endEl.classList.add("hidden");
+    if (howtoEl) howtoEl.classList.add("hidden");
+    titleEl.classList.add("hidden");
+    openingEl.classList.add("hidden");
+    if (dockEl) dockEl.classList.remove("hidden");
+    if (dockCanvas) dockCanvas.style.display = "block";
+    if (dockAssembled) dockAssembled.style.display = "none";
+    if (dockFlashEl) dockFlashEl.style.opacity = "0";
+    setDockStatus("DOCKING SEQUENCE");
+    ensureAudio();
+    if (actx && actx.state === "suspended") {
+      try { actx.resume(); } catch (_) {}
+    }
+    stopWaitBgm();
+    stopOpeningBgm();
+    dockPhase = "dock";
+    dockT0 = performance.now();
+    function loop(now) {
+      if (mode !== "dock" || dockPhase !== "dock") return;
+      let tsec = (now - dockT0) / 1000;
+      if (tsec >= DOCK_TOTAL) {
+        tsec = DOCK_TOTAL;
+        dockRender(dockUpdate(tsec));
+        dockDoFlash();
+        return;
+      }
+      dockRender(dockUpdate(tsec));
+      dockTriggerSfx(tsec);
+      dockAnimId = requestAnimationFrame(loop);
+    }
+    dockAnimId = requestAnimationFrame(loop);
+  }
+
+  /** ドッキング完了後 → VOID 仮エンディング */
+  function showVoidEnd() {
+    if (mode !== "dock" && mode !== "void") return;
+    mode = "void";
+    stopDockAnim();
+    ensureAudio();
+    if (actx && actx.state === "suspended") {
+      try { actx.resume(); } catch (_) {}
+    }
+    stopWaitBgm();
+    stopOpeningBgm();
+    hideDock();
+    hideEmergency();
+    hideNewMission();
+    hideGroundEnding();
     endEl.classList.add("hidden");
     if (howtoEl) howtoEl.classList.add("hidden");
     titleEl.classList.add("hidden");
     openingEl.classList.add("hidden");
     if (voidImg) voidImg.src = "VOID.png";
     if (voidEndEl) voidEndEl.classList.remove("hidden");
-    sfxConfirm();
   }
 
-  /** 隠し画面 END → オープニング1枚目へ */
-  function showOpening() {
-    mode = "opening";
-    openingStep = 0;
+  /** VOID 仮エンディング → タイトル（アクセス）画面 */
+  function leaveVoidEndToTitle() {
+    if (mode !== "void") return;
+    ensureAudio();
+    if (actx && actx.state === "suspended") {
+      try { actx.resume(); } catch (_) {}
+    }
+    try { sfxConfirm(); } catch (_) {}
     hideVoidEnd();
+    hideGroundEnding();
+    hideEmergency();
+    hideNewMission();
+    hideDock();
     endEl.classList.add("hidden");
     endPoster.classList.remove("show", "fail");
     if (endFrame) endFrame.classList.remove("fail");
+    resetEndButtonsToLoseDefault();
+    showOpening();
+  }
+
+  /** クリア後 RECEIVE ORDERS → 緊急指令画面（EMERGENCY.png + GO!）＋サイレン */
+  function showEmergency() {
+    if (mode !== "clear") return;
+    mode = "emergency";
+    stopWaitBgm();
+    stopOpeningBgm();
+    // 画面を先に出してから音（resume 待ちで音が遅れても映像は即時）
+    endEl.classList.add("hidden");
+    if (howtoEl) howtoEl.classList.add("hidden");
+    titleEl.classList.add("hidden");
+    openingEl.classList.add("hidden");
+    hideVoidEnd();
+    hideGroundEnding();
+    hideNewMission();
+    hideDock();
+    if (emergencyImg) emergencyImg.src = "EMERGENCY.png";
+    if (emergencyEl) emergencyEl.classList.remove("hidden");
+    // 決定SEは鳴らさず、サイレンを最優先で即開始（表示とほぼ同時）
+    startSiren();
+  }
+
+  /** NEW MISSION 画面へ UI 切替（音と独立して呼べる） */
+  function showNewMissionUI() {
+    mode = "newmission";
+    hideEmergency();
+    hideVoidEnd();
+    hideGroundEnding();
+    hideDock();
+    endEl.classList.add("hidden");
+    if (howtoEl) howtoEl.classList.add("hidden");
+    titleEl.classList.add("hidden");
+    openingEl.classList.add("hidden");
+    if (newmissionImg) newmissionImg.src = "NEWMISSION.png";
+    if (newmissionEl) newmissionEl.classList.remove("hidden");
+  }
+
+  /**
+   * GO! → サイレン停止 → バン！と同時に NEW MISSION。
+   * AudioContext resume 完了後に爆音→画面切替（音遅れ防止）。
+   */
+  let goingToNewMission = false;
+  function goToNewMission() {
+    if (mode !== "emergency" || goingToNewMission) return;
+    goingToNewMission = true;
+    stopSiren();
+    resumeAudio().then(() => {
+      // 衝撃音を先に（または同時に）鳴らしてから画面切替
+      sfxLaunchBoom();
+      // 音の立ち上がりと画面を揃える（約1フレーム相当で即切替）
+      showNewMissionUI();
+      goingToNewMission = false;
+    }).catch(() => {
+      sfxLaunchBoom();
+      showNewMissionUI();
+      goingToNewMission = false;
+    });
+  }
+
+  /** オープニング1枚目（タイトル）へ — ドッキング完了後など */
+  function showOpening() {
+    mode = "opening";
+    openingStep = 0;
+    clearOpeningTimer();
+    clearTitleEnterDebounce();
+    hideVoidEnd();
+    hideGroundEnding();
+    hideEmergency();
+    hideNewMission();
+    hideDock();
+    endEl.classList.add("hidden");
+    endPoster.classList.remove("show", "fail");
+    if (endFrame) endFrame.classList.remove("fail");
+    resetEndButtonsToLoseDefault();
     if (howtoEl) howtoEl.classList.add("hidden");
     titleEl.classList.add("hidden");
     openingEl.classList.remove("hidden");
@@ -7099,33 +8603,55 @@
 
   function showHowto() {
     mode = "howto";
+    clearOpeningTimer();
+    clearTitleEnterDebounce();
     stopOpeningBgm();
     hideVoidEnd();
+    hideGroundEnding();
+    hideEmergency();
+    hideNewMission();
+    hideDock();
     openingEl.classList.add("hidden");
     if (howtoEl) howtoEl.classList.remove("hidden");
     titleEl.classList.add("hidden");
     endEl.classList.add("hidden");
+    // 説明画面：点滅「ゲームスタート」（文言は HTML 側）
+    const hs = document.getElementById("howto-start");
+    if (hs) hs.textContent = "ゲームスタート";
     startWaitBgm(); // 待機画面：タッタカ、タッタカ
   }
 
-  function advanceOpening() {
+  /**
+   * 次のオープニング枚へ（自動 or タイトルからの進行）。
+   * スキップは説明画面ジャンプなのでここでは扱わない。
+   */
+  function advanceOpening(fromUser) {
     if (mode !== "opening") return;
+    if (isOpeningLastSlide()) return;
+    // タイトルは自動では進まない
+    if (isOpeningTitleSlide() && !fromUser) return;
+    clearOpeningTimer();
     ensureAudio();
-    if (actx && actx.state === "suspended") actx.resume();
-    startOpeningBgm(); // 初回操作でオープニングBGM開始（以降は継続）
-    sfxConfirm(); // 決定SE
-    openingStep++;
-    if (openingStep >= OPENING_SLIDES.length) {
-      showHowto();
-      return;
+    if (actx && actx.state === "suspended") {
+      try { actx.resume(); } catch (_) {}
     }
+    startOpeningBgm();
+    if (fromUser) {
+      try { sfxConfirm(); } catch (_) {}
+    }
+    openingStep++;
     applyOpeningSlide();
   }
 
   function showTitle() {
     mode = "title";
+    clearOpeningTimer();
     stopOpeningBgm();
     hideVoidEnd();
+    hideGroundEnding();
+    hideEmergency();
+    hideNewMission();
+    hideDock();
     openingEl.classList.add("hidden");
     if (howtoEl) howtoEl.classList.add("hidden");
     titleEl.classList.remove("hidden");
@@ -7137,6 +8663,8 @@
   function start() {
     if (starting) return;
     starting = true;
+    clearOpeningTimer();
+    clearTitleEnterDebounce();
     ensureAudio();
     if (actx && actx.state === "suspended") actx.resume();
     stopWaitBgm();
@@ -7148,6 +8676,7 @@
     const howtoStartBtn = document.getElementById("howto-start");
     if (startBtn) startBtn.disabled = true;
     if (howtoStartBtn) howtoStartBtn.disabled = true;
+    if (opStartBtn) opStartBtn.disabled = true;
     setTimeout(() => {
       resetGame();
       mode = "play";
@@ -7156,10 +8685,16 @@
       titleEl.classList.add("hidden");
       endEl.classList.add("hidden");
       hideVoidEnd();
+      hideGroundEnding();
+      hideEmergency();
+      hideNewMission();
+      hideDock();
       endPoster.classList.remove("show", "fail");
       if (endFrame) endFrame.classList.remove("fail");
+      resetEndButtonsToLoseDefault();
       if (startBtn) startBtn.disabled = false;
       if (howtoStartBtn) howtoStartBtn.disabled = false;
+      if (opStartBtn) opStartBtn.disabled = false;
       starting = false;
       const names = {
         easy: "イージー",
@@ -7171,7 +8706,7 @@
     }, ms);
   }
 
-  // オープニング：ストーリー4枚 → 操作説明 → ゲーム開始
+  // オープニング：タイトル → 3連（自動／スキップ）→ 説明 → ゲームスタート
   applyOpeningSlide();
   // オープニング中のクリックでもBGM開始（自動再生制限対策）
   if (openingEl) {
@@ -7182,28 +8717,115 @@
       startOpeningBgm();
     }, { once: false });
   }
-  document.getElementById("op-next").onclick = () => {
-    advanceOpening();
-  };
+  if (opSkipBtn) {
+    opSkipBtn.onclick = () => {
+      if (mode !== "opening") return;
+      // 2枚目以降のスキップ → 説明画面へ
+      if (!isOpeningSkipSlide() && !isOpeningLastSlide()) return;
+      jumpToHowtoFromOpening();
+    };
+  }
+  if (opStartBtn) {
+    opStartBtn.onclick = () => {
+      if (mode !== "opening") return;
+      if (isOpeningTitleSlide()) {
+        handleTitleStart(true); // クリックは連打判定なしで3連へ
+        return;
+      }
+      if (isOpeningLastSlide()) {
+        jumpToHowtoFromOpening();
+        return;
+      }
+    };
+  }
+  // 旧 NEXT（非表示・互換）
+  const opNextBtn = document.getElementById("op-next");
+  if (opNextBtn) {
+    opNextBtn.onclick = () => {
+      if (mode !== "opening") return;
+      handleOpeningConfirm();
+    };
+  }
 
   const howtoStartEl = document.getElementById("howto-start");
   if (howtoStartEl) howtoStartEl.onclick = start;
 
   document.getElementById("start").onclick = start;
-  document.getElementById("again").onclick = () => {
+  /** LOSE「もう一度」：タイトルへ（クリック / Enter 共通） */
+  function restartFromLose() {
+    if (mode !== "over") return;
     endEl.classList.add("hidden");
     endPoster.classList.remove("show", "fail");
     if (endFrame) endFrame.classList.remove("fail");
+    resetEndButtonsToLoseDefault();
     hideVoidEnd();
+    hideGroundEnding();
+    hideEmergency();
+    hideNewMission();
+    hideDock();
     showTitle();
-  };
+  }
+  if (againBtn) {
+    againBtn.onclick = () => {
+      restartFromLose();
+    };
+  }
+  // クリア2択：クリック
+  if (clearEndBtn) {
+    clearEndBtn.onclick = () => {
+      if (mode !== "clear") return;
+      setClearChoice(0);
+      confirmClearChoice();
+    };
+  }
+  if (clearOrdersBtn) {
+    clearOrdersBtn.onclick = () => {
+      if (mode !== "clear") return;
+      setClearChoice(1);
+      confirmClearChoice();
+    };
+  }
+  // マウスホバーでも選択ハイライトを合わせる
+  if (clearEndBtn) {
+    clearEndBtn.addEventListener("mouseenter", () => {
+      if (mode === "clear") setClearChoice(0);
+    });
+  }
+  if (clearOrdersBtn) {
+    clearOrdersBtn.addEventListener("mouseenter", () => {
+      if (mode === "clear") setClearChoice(1);
+    });
+  }
 
+  // 地上編エンディング：END → タイトル（アクセス）画面
+  if (groundEndingBtn) {
+    groundEndingBtn.onclick = () => {
+      leaveGroundEndingToTitle();
+    };
+  }
+
+  // VOID 仮エンディング：END → タイトル（アクセス）画面
   const voidEndBtn = document.getElementById("void-end-btn");
   if (voidEndBtn) {
     voidEndBtn.onclick = () => {
-      if (mode !== "void") return;
+      leaveVoidEndToTitle();
+    };
+  }
+
+  // 緊急指令：GO! → 爆音 → NEW MISSION
+  if (emergencyGoBtn) {
+    emergencyGoBtn.onclick = () => {
+      goToNewMission();
+    };
+  }
+
+  // NEW MISSION：了解 → キャンバス・ドッキング演出 → VOID
+  const newmissionOkBtn = document.getElementById("newmission-ok");
+  if (newmissionOkBtn) {
+    newmissionOkBtn.onclick = () => {
+      if (mode !== "newmission") return;
       sfxConfirm();
-      showOpening();
+      showDockSequence();
     };
   }
 
