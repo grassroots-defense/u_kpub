@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Grassroots Defense ver.4.3 · 2.5D — 草の根防衛</title>
+  <title>Grassroots Defense ver.4.4 · 2.5D — 草の根防衛</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -550,7 +550,7 @@
     #newmission-ok:hover {
       filter: brightness(1.08);
     }
-    /* ドッキング演出（キャンバス一体型・docking-boss-test 移植） */
+    /* ドッキング演出（画像パーツ版） */
     #dock.ui {
       padding: 8px;
       background: rgba(4, 6, 12, 0.98);
@@ -581,28 +581,36 @@
       overflow: hidden;
       border-radius: 4px;
     }
-    #dockCanvas {
+    #dock-bg {
       position: absolute;
       inset: 0;
       width: 100%;
       height: 100%;
-      z-index: 5;
-      display: block;
-      image-rendering: auto;
+      object-fit: cover;
+      z-index: 0;
+      pointer-events: none;
     }
+    .dock-part {
+      position: absolute;
+      pointer-events: none;
+      transform-origin: center center;
+      will-change: transform, opacity, left, top, width;
+      z-index: 4;
+      display: block;
+    }
+    #dock-core { z-index: 8; }
+    #dock-main { z-index: 4; }
+    #dock-left, #dock-right { z-index: 6; }
     #dock-assembled {
       position: absolute;
-      z-index: 8;
-      display: none;
+      z-index: 9;
       left: 50%;
-      top: 38%;
-      width: auto;
-      height: auto;
-      max-width: 24%;
-      max-height: 34%;
+      top: 40%;
+      width: 26%;
+      opacity: 0;
       transform: translate(-50%, -50%);
       object-fit: contain;
-      transition: top 2.2s ease-in-out, transform 2.2s ease-in-out;
+      pointer-events: none;
     }
     #dock-flash {
       position: absolute;
@@ -611,7 +619,83 @@
       opacity: 0;
       z-index: 20;
       pointer-events: none;
-      transition: opacity 0.15s;
+      transition: opacity 0.12s;
+    }
+    #dock-void {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 15;
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(1.08);
+      transform-origin: center center;
+      will-change: transform, filter, opacity;
+    }
+    #dock-void.void-live {
+      animation: voidWriggle 3.2s ease-in-out infinite,
+                 voidGlow 2.4s ease-in-out infinite;
+    }
+    #dock-void.void-intense {
+      animation: voidWriggleFast 1.6s ease-in-out infinite,
+                 voidGlowHard 1.2s ease-in-out infinite;
+    }
+    @keyframes voidWriggle {
+      0%   { transform: scale(1.00) rotate(0deg) translate(0px, 0px); }
+      25%  { transform: scale(1.03) rotate(0.6deg) translate(4px, -3px); }
+      50%  { transform: scale(1.015) rotate(-0.5deg) translate(-3px, 4px); }
+      75%  { transform: scale(1.04) rotate(0.4deg) translate(3px, 2px); }
+      100% { transform: scale(1.00) rotate(0deg) translate(0px, 0px); }
+    }
+    @keyframes voidWriggleFast {
+      0%   { transform: scale(1.02) rotate(0deg) translate(0px, 0px); }
+      25%  { transform: scale(1.07) rotate(1.2deg) translate(6px, -5px); }
+      50%  { transform: scale(1.04) rotate(-1.0deg) translate(-5px, 6px); }
+      75%  { transform: scale(1.08) rotate(0.8deg) translate(5px, 3px); }
+      100% { transform: scale(1.02) rotate(0deg) translate(0px, 0px); }
+    }
+    @keyframes voidGlow {
+      0%   { filter: brightness(1) contrast(1) saturate(1.05)
+                     drop-shadow(0 0 12px rgba(180, 60, 255, 0.35)); }
+      50%  { filter: brightness(1.18) contrast(1.08) saturate(1.35)
+                     drop-shadow(0 0 28px rgba(220, 80, 255, 0.7)); }
+      100% { filter: brightness(1) contrast(1) saturate(1.05)
+                     drop-shadow(0 0 12px rgba(180, 60, 255, 0.35)); }
+    }
+    @keyframes voidGlowHard {
+      0%   { filter: brightness(1.1) contrast(1.1) saturate(1.2)
+                     drop-shadow(0 0 18px rgba(255, 80, 200, 0.5)); }
+      50%  { filter: brightness(1.35) contrast(1.2) saturate(1.55)
+                     drop-shadow(0 0 40px rgba(255, 120, 255, 0.95)); }
+      100% { filter: brightness(1.1) contrast(1.1) saturate(1.2)
+                     drop-shadow(0 0 18px rgba(255, 80, 200, 0.5)); }
+    }
+    #dock-void-haze {
+      position: absolute;
+      inset: 0;
+      z-index: 16;
+      pointer-events: none;
+      opacity: 0;
+      background:
+        radial-gradient(ellipse at center,
+          rgba(160, 40, 220, 0.18) 0%,
+          rgba(40, 0, 60, 0.12) 45%,
+          rgba(0, 0, 0, 0.35) 100%);
+      mix-blend-mode: screen;
+      transition: opacity 0.6s ease;
+    }
+    #dock-void-haze.on {
+      opacity: 1;
+      animation: hazePulse 2.8s ease-in-out infinite;
+    }
+    @keyframes hazePulse {
+      0%, 100% { opacity: 0.55; }
+      50% { opacity: 0.9; }
+    }
+    #dock-caption {
+      display: none;
     }
     #dock-status {
       flex: 0 0 auto;
@@ -780,7 +864,7 @@
   </style>
 </head>
 <body>
-  <h1>Grassroots Defense <span style="font-size:0.75em;opacity:.7">ver.4.3 · 2.5D</span></h1>
+  <h1>Grassroots Defense <span style="font-size:0.75em;opacity:.7">ver.4.4 · 2.5D</span></h1>
   <p class="sub">草の根の知恵で、環境破壊を跳ね返す — 奥行きのある大地</p>
 
   <div id="wrap">
@@ -847,7 +931,7 @@
     <div id="title" class="ui hidden">
       <div class="panel">
         <h2>草の根防衛ユニット X</h2>
-        <p style="font-size:0.78rem;color:#8aaa78;margin:-4px 0 8px;">ver.4.3 · 2.5D</p>
+        <p style="font-size:0.78rem;color:#8aaa78;margin:-4px 0 8px;">ver.4.4 · 2.5D</p>
         <p>
           浮遊メカで汚染を撃ち落とし、<br />
           種と知恵で世界を緑に変えよう。
@@ -950,19 +1034,26 @@
       </div>
     </div>
 
-    <div id="dock" class="ui hidden">
+        <div id="dock" class="ui hidden">
       <div class="dock-panel">
         <div id="dock-stage">
-          <canvas id="dockCanvas" width="960" height="720"></canvas>
-          <img id="dock-assembled" class="dock-assembled" src="assembled_ship.jpg" alt="Assembled craft" />
+          <img id="dock-bg" src="tikyuu.png" alt="earth">
+          <img id="dock-main" class="dock-part" src="bb.png" alt="main booster">
+          <img id="dock-left" class="dock-part" src="left.png" alt="left booster">
+          <img id="dock-right" class="dock-part" src="right.png" alt="right booster">
+          <img id="dock-core" class="dock-part" src="X.png" alt="core">
+          <img id="dock-assembled" src="assembled_ship.png" alt="assembled">
+          <img id="dock-void" src="VOID.png" alt="THE VOID">
+          <div id="dock-void-haze"></div>
           <div id="dock-flash"></div>
+          <div id="dock-caption">緊急指令室</div>
         </div>
         <p id="dock-status">DOCKING SEQUENCE</p>
       </div>
     </div>
   </div>
 
-  <p class="foot">スペースインベーダー風 · ver.4.3 · 2.5D · ユニットX · WAVE1〜8 · Pでポーズ</p>
+  <p class="foot">スペースインベーダー風 · ver.4.4 · 2.5D · ユニットX · WAVE1〜8 · Pでポーズ</p>
 
   <script>
 (() => {
@@ -1007,11 +1098,16 @@
   const newmissionEl = document.getElementById("newmission");
   const newmissionImg = document.getElementById("newmission-img");
   const dockEl = document.getElementById("dock");
-  const dockCanvas = document.getElementById("dockCanvas");
-  const dockCtx = dockCanvas ? dockCanvas.getContext("2d") : null;
+  const dockCore = document.getElementById("dock-core");
+  const dockMain = document.getElementById("dock-main");
+  const dockLeft = document.getElementById("dock-left");
+  const dockRight = document.getElementById("dock-right");
   const dockAssembled = document.getElementById("dock-assembled");
+  const dockVoid = document.getElementById("dock-void");
+  const dockVoidHaze = document.getElementById("dock-void-haze");
   const dockFlashEl = document.getElementById("dock-flash");
   const dockStatusEl = document.getElementById("dock-status");
+  const dockCaptionEl = document.getElementById("dock-caption");
   const againBtn = document.getElementById("again");
   const clearChoicesEl = document.getElementById("clear-choices");
   const clearEndBtn = document.getElementById("clear-end");
@@ -8029,30 +8125,10 @@
     if (newmissionEl) newmissionEl.classList.add("hidden");
   }
 
-  // ========== ドッキング演出（docking-boss-test.html 一体移植） ==========
-  const DOCK_W = 960;
-  const DOCK_H = 720;
-  const DOCK_TOTAL = 17.5;
+  // ========== ドッキング演出（画像パーツ版） ==========
   let dockAnimId = null;
   let dockPhaseTimers = [];
-  let dockT0 = null;
-  let dockPhase = "idle"; // idle | dock | flash | ship | descend
-  const dockSfxFlags = {};
-
-  function dockLerp(a, b, t) { return a + (b - a) * t; }
-  function dockEaseInOut(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
-  function dockP(t, a, b) {
-    if (t < a) return 0;
-    if (t > b) return 1;
-    return dockEaseInOut((t - a) / (b - a));
-  }
-
-  const dockStars = Array.from({ length: 120 }, () => ({
-    x: Math.random() * DOCK_W,
-    y: Math.random() * DOCK_H * 0.68,
-    r: Math.random() * 1.5 + 0.2,
-    a: Math.random() * 0.8 + 0.2,
-  }));
+  let dockPhase = "idle"; // idle | dock | flash | ship | descend | void
 
   function clearDockTimers() {
     for (const id of dockPhaseTimers) clearTimeout(id);
@@ -8064,378 +8140,197 @@
     return id;
   }
   function stopDockAnim() {
+    clearDockTimers();
     if (dockAnimId != null) {
       cancelAnimationFrame(dockAnimId);
       dockAnimId = null;
     }
-    clearDockTimers();
-    dockT0 = null;
     dockPhase = "idle";
-    for (const k in dockSfxFlags) delete dockSfxFlags[k];
-    if (dockFlashEl) dockFlashEl.style.opacity = "0";
-    if (dockAssembled) {
-      dockAssembled.style.display = "none";
-      dockAssembled.style.left = "50%";
-      dockAssembled.style.top = "38%";
-      dockAssembled.style.transform = "translate(-50%, -50%)";
-    }
-    if (dockCanvas) dockCanvas.style.display = "block";
   }
-
   function hideDock() {
     stopDockAnim();
     if (dockEl) dockEl.classList.add("hidden");
   }
-
   function setDockStatus(s) {
     if (dockStatusEl) dockStatusEl.textContent = s;
   }
-
-  function dockDrawStars(dctx) {
-    for (const s of dockStars) {
-      dctx.beginPath();
-      dctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-      dctx.fillStyle = `rgba(190,220,255,${s.a})`;
-      dctx.fill();
+  function setDockCap(s) {
+    if (dockCaptionEl) dockCaptionEl.textContent = s;
+  }
+  function dockPlace(el, left, top, width, opacity, extraTransform) {
+    if (!el) return;
+    el.style.left = left;
+    el.style.top = top;
+    el.style.width = width;
+    el.style.opacity = String(opacity);
+    el.style.transform = extraTransform || "translate(-50%, -50%)";
+  }
+  function dockHideParts() {
+    [dockCore, dockMain, dockLeft, dockRight, dockAssembled].forEach((el) => {
+      if (!el) return;
+      el.style.opacity = "0";
+      el.style.transition = "none";
+    });
+    if (dockVoid) {
+      dockVoid.classList.remove("void-live", "void-intense");
+      dockVoid.style.transition = "none";
+      dockVoid.style.opacity = "0";
+      dockVoid.style.transform = "scale(1.08)";
+      dockVoid.style.filter = "";
     }
+    if (dockVoidHaze) dockVoidHaze.classList.remove("on");
+    if (dockFlashEl) dockFlashEl.style.opacity = "0";
   }
-  function dockDrawEarth(dctx) {
-    const cy = DOCK_H + 55, r = 300;
-    const g = dctx.createRadialGradient(DOCK_W / 2, cy, r * 0.6, DOCK_W / 2, cy, r * 1.25);
-    g.addColorStop(0, "rgba(30,100,255,0)");
-    g.addColorStop(0.7, "rgba(20,80,220,0.12)");
-    g.addColorStop(1, "rgba(10,40,120,0)");
-    dctx.fillStyle = g;
-    dctx.beginPath();
-    dctx.arc(DOCK_W / 2, cy, r * 1.25, 0, Math.PI * 2);
-    dctx.fill();
-    dctx.beginPath();
-    dctx.arc(DOCK_W / 2, cy, r, 0, Math.PI * 2);
-    const pg = dctx.createLinearGradient(DOCK_W / 2, cy - r, DOCK_W / 2, cy + r);
-    pg.addColorStop(0, "#163878");
-    pg.addColorStop(0.5, "#0a2048");
-    pg.addColorStop(1, "#040c20");
-    dctx.fillStyle = pg;
-    dctx.fill();
-    dctx.strokeStyle = "rgba(60,150,255,0.5)";
-    dctx.lineWidth = 3;
-    dctx.beginPath();
-    dctx.arc(DOCK_W / 2, cy, r, Math.PI * 1.1, Math.PI * 1.9);
-    dctx.stroke();
-  }
-  function dockDrawSpaceX(dctx, x, y, s, glow) {
-    if (glow == null) glow = 1;
-    dctx.save();
-    dctx.translate(x, y);
-    dctx.scale(s, s);
-    dctx.shadowColor = `rgba(40,160,255,${0.45 * glow})`;
-    dctx.shadowBlur = 16 * glow;
-    dctx.fillStyle = "#1c222c";
-    dctx.strokeStyle = "#a0b4c8";
-    dctx.lineWidth = 2.2;
-    dctx.beginPath();
-    dctx.moveTo(-42, -8); dctx.lineTo(-28, -22); dctx.lineTo(28, -22); dctx.lineTo(42, -8);
-    dctx.lineTo(46, 6); dctx.lineTo(36, 20); dctx.lineTo(-36, 20); dctx.lineTo(-46, 6);
-    dctx.closePath();
-    dctx.fill(); dctx.stroke();
-    dctx.fillStyle = "#0c1018";
-    dctx.fillRect(-26, -14, 52, 24);
-    dctx.strokeStyle = "#4a6a88";
-    dctx.strokeRect(-26, -14, 52, 24);
-    dctx.strokeStyle = "#e8f0ff";
-    dctx.lineWidth = 4;
-    dctx.lineCap = "square";
-    dctx.beginPath();
-    dctx.moveTo(-16, -8); dctx.lineTo(16, 10);
-    dctx.moveTo(16, -8); dctx.lineTo(-16, 10);
-    dctx.stroke();
-    dctx.fillStyle = "#2a3448";
-    dctx.strokeStyle = "#7a90a8";
-    dctx.lineWidth = 1.8;
-    dctx.beginPath();
-    dctx.moveTo(-46, 0); dctx.lineTo(-58, 4); dctx.lineTo(-56, 16); dctx.lineTo(-42, 14);
-    dctx.closePath(); dctx.fill(); dctx.stroke();
-    dctx.beginPath();
-    dctx.moveTo(46, 0); dctx.lineTo(58, 4); dctx.lineTo(56, 16); dctx.lineTo(42, 14);
-    dctx.closePath(); dctx.fill(); dctx.stroke();
-    dctx.shadowBlur = 0;
-    const tg = dctx.createRadialGradient(0, 28, 2, 0, 28, 28);
-    tg.addColorStop(0, `rgba(80,200,255,${0.85 * glow})`);
-    tg.addColorStop(0.4, `rgba(30,120,255,${0.35 * glow})`);
-    tg.addColorStop(1, "rgba(10,40,120,0)");
-    dctx.fillStyle = tg;
-    dctx.beginPath();
-    dctx.ellipse(0, 26, 32, 12, 0, 0, Math.PI * 2);
-    dctx.fill();
-    dctx.fillStyle = "#2cf";
-    dctx.fillRect(-34, -16, 6, 4); dctx.fillRect(28, -16, 6, 4); dctx.fillRect(-8, 14, 16, 3);
-    dctx.fillStyle = "#e85818";
-    dctx.fillRect(-22, 16, 8, 3); dctx.fillRect(14, 16, 8, 3);
-    dctx.restore();
-  }
-  function dockDrawMainBooster(dctx, x, y, s, rot, flame) {
-    if (rot == null) rot = 0;
-    if (flame == null) flame = 1;
-    dctx.save();
-    dctx.translate(x, y);
-    dctx.rotate(rot);
-    dctx.scale(s, s);
-    dctx.fillStyle = "#252c38";
-    dctx.strokeStyle = "#8a9cb0";
-    dctx.lineWidth = 2.4;
-    dctx.beginPath();
-    dctx.moveTo(-32, -100); dctx.lineTo(32, -100); dctx.lineTo(42, -75); dctx.lineTo(42, 75);
-    dctx.lineTo(26, 108); dctx.lineTo(-26, 108); dctx.lineTo(-42, 75); dctx.lineTo(-42, -75);
-    dctx.closePath();
-    dctx.fill(); dctx.stroke();
-    dctx.fillStyle = "#080a10";
-    dctx.fillRect(-22, -48, 44, 96);
-    dctx.strokeStyle = "#3a5a7a";
-    dctx.lineWidth = 2;
-    dctx.strokeRect(-22, -48, 44, 96);
-    dctx.fillStyle = "#d05018";
-    dctx.fillRect(-38, -60, 6, 22); dctx.fillRect(32, -60, 6, 22);
-    dctx.fillRect(-38, 30, 6, 22); dctx.fillRect(32, 30, 6, 22);
-    dctx.fillStyle = "#1a2030";
-    dctx.beginPath();
-    dctx.moveTo(-16, -100); dctx.lineTo(16, -100); dctx.lineTo(10, -118); dctx.lineTo(-10, -118);
-    dctx.closePath(); dctx.fill();
-    dctx.fillStyle = "#28f";
-    for (let i = -4; i <= 4; i++) dctx.fillRect(-5, i * 14 - 24, 10, 5);
-    if (flame > 0.05) {
-      const fg = dctx.createLinearGradient(0, 108, 0, 108 + 65 * flame);
-      fg.addColorStop(0, `rgba(90,190,255,${0.95 * flame})`);
-      fg.addColorStop(0.35, `rgba(40,130,255,${0.55 * flame})`);
-      fg.addColorStop(1, "rgba(15,50,160,0)");
-      dctx.fillStyle = fg;
-      dctx.beginPath();
-      dctx.moveTo(-20, 108); dctx.lineTo(20, 108);
-      dctx.lineTo(10, 108 + 65 * flame); dctx.lineTo(-10, 108 + 65 * flame);
-      dctx.closePath(); dctx.fill();
-    }
-    dctx.restore();
-  }
-  function dockDrawSideBooster(dctx, x, y, s, side, flame) {
-    if (side == null) side = 1;
-    if (flame == null) flame = 1;
-    dctx.save();
-    dctx.translate(x, y);
-    dctx.scale(s * side, s);
-    dctx.fillStyle = "#283040";
-    dctx.strokeStyle = "#8094a8";
-    dctx.lineWidth = 2;
-    dctx.beginPath();
-    dctx.moveTo(-16, -78); dctx.lineTo(16, -78); dctx.lineTo(22, -55); dctx.lineTo(22, 62);
-    dctx.lineTo(12, 85); dctx.lineTo(-12, 85); dctx.lineTo(-22, 62); dctx.lineTo(-22, -55);
-    dctx.closePath();
-    dctx.fill(); dctx.stroke();
-    dctx.fillStyle = "#0a0e16";
-    dctx.fillRect(-10, -36, 20, 58);
-    dctx.fillStyle = "#c84818";
-    dctx.fillRect(-14, -48, 5, 14); dctx.fillRect(9, -48, 5, 14);
-    dctx.fillStyle = "#2af";
-    dctx.beginPath();
-    dctx.arc(0, -68, 6, 0, Math.PI * 2);
-    dctx.fill();
-    if (flame > 0.05) {
-      const fg = dctx.createLinearGradient(0, 85, 0, 85 + 48 * flame);
-      fg.addColorStop(0, `rgba(70,170,255,${0.9 * flame})`);
-      fg.addColorStop(1, "rgba(20,70,180,0)");
-      dctx.fillStyle = fg;
-      dctx.beginPath();
-      dctx.moveTo(-11, 85); dctx.lineTo(11, 85);
-      dctx.lineTo(6, 85 + 48 * flame); dctx.lineTo(-6, 85 + 48 * flame);
-      dctx.closePath(); dctx.fill();
-    }
-    dctx.restore();
-  }
-  function dockDrawHUD(dctx) {
-    dctx.strokeStyle = "rgba(40,120,200,0.4)";
-    dctx.lineWidth = 2;
-    const m = 18;
-    dctx.beginPath();
-    dctx.moveTo(m, m + 28); dctx.lineTo(m, m); dctx.lineTo(m + 28, m);
-    dctx.moveTo(DOCK_W - m - 28, m); dctx.lineTo(DOCK_W - m, m); dctx.lineTo(DOCK_W - m, m + 28);
-    dctx.moveTo(m, DOCK_H - m - 28); dctx.lineTo(m, DOCK_H - m); dctx.lineTo(m + 28, DOCK_H - m);
-    dctx.moveTo(DOCK_W - m - 28, DOCK_H - m); dctx.lineTo(DOCK_W - m, DOCK_H - m); dctx.lineTo(DOCK_W - m, DOCK_H - m - 28);
-    dctx.stroke();
-  }
-  function dockDrawScanlines(dctx) {
-    dctx.fillStyle = "rgba(0,0,0,0.1)";
-    for (let y = 0; y < DOCK_H; y += 3) dctx.fillRect(0, y, DOCK_W, 1);
-  }
-
-  function dockUpdate(t) {
-    let coreX = DOCK_W / 2, coreY = DOCK_H * 0.42, coreS = 0.95, coreGlow = 1;
-    let mainX = DOCK_W / 2 + 340;
-    let mainY = DOCK_H * 0.55;
-    let mainS = 0.28;
-    let mainRot = -0.45;
-    let mainFlame = 0.7;
-    let mainVis = dockP(t, 1.5, 2.4);
-    let sideLX = -150, sideRX = DOCK_W + 150, sideY = DOCK_H * 0.52, sideS = 0.45, sideFlame = 0.9, sideVis = 0;
-
-    if (t > 2.6) {
-      const a = dockP(t, 2.6, 8.4);
-      mainX = dockLerp(DOCK_W / 2 + 340, DOCK_W / 2, a);
-      mainY = dockLerp(DOCK_H * 0.55, DOCK_H * 0.38, a);
-      mainS = dockLerp(0.28, 1.10, a);
-      mainRot = dockLerp(-0.45, 0, a);
-      mainFlame = dockLerp(0.7, 0.35, a);
-    }
-    if (t > 5.5) {
-      const a = dockP(t, 5.5, 8.4);
-      coreY = dockLerp(DOCK_H * 0.42, DOCK_H * 0.38, a);
-      coreS = dockLerp(0.95, 0.48, a);
-      coreGlow = dockLerp(1, 0.55, a);
-    }
-    sideVis = dockP(t, 10.0, 10.9);
-    if (t > 10.2) {
-      const a = dockP(t, 10.3, 14.6);
-      sideLX = dockLerp(-160, DOCK_W / 2 - 100, a);
-      sideRX = dockLerp(DOCK_W + 160, DOCK_W / 2 + 100, a);
-      sideY = dockLerp(DOCK_H * 0.58, DOCK_H * 0.40, a);
-      sideS = dockLerp(0.35, 0.92, a);
-      sideFlame = dockLerp(1.15, 0.5, a);
-    }
-    if (t > 15.0) {
-      const a = dockP(t, 15.0, 16.8);
-      sideLX = dockLerp(DOCK_W / 2 - 100, DOCK_W / 2 - 80, a);
-      sideRX = dockLerp(DOCK_W / 2 + 100, DOCK_W / 2 + 80, a);
-      sideS = dockLerp(0.92, 0.98, a);
-      mainS = dockLerp(1.10, 1.15, a);
-      mainFlame = dockLerp(0.35, 0.75, a);
-      sideFlame = dockLerp(0.5, 0.85, a);
-    }
-    return {
-      core: { x: coreX, y: coreY, s: coreS, glow: coreGlow },
-      main: { x: mainX, y: mainY, s: mainS, rot: mainRot, flame: mainFlame, vis: mainVis },
-      side: { lx: sideLX, rx: sideRX, y: sideY, s: sideS, flame: sideFlame, vis: sideVis },
-    };
-  }
-
-  function dockRender(state) {
-    if (!dockCtx) return;
-    const dctx = dockCtx;
-    dctx.fillStyle = "#000";
-    dctx.fillRect(0, 0, DOCK_W, DOCK_H);
-    dockDrawStars(dctx);
-    dockDrawEarth(dctx);
-    if (state.side.vis > 0.04) {
-      dctx.globalAlpha = state.side.vis;
-      dockDrawSideBooster(dctx, state.side.lx, state.side.y, state.side.s, -1, state.side.flame);
-      dockDrawSideBooster(dctx, state.side.rx, state.side.y, state.side.s, 1, state.side.flame);
-      dctx.globalAlpha = 1;
-    }
-    if (state.main.vis > 0.04) {
-      dctx.globalAlpha = state.main.vis;
-      dockDrawMainBooster(dctx, state.main.x, state.main.y, state.main.s, state.main.rot, state.main.flame);
-      dctx.globalAlpha = 1;
-    }
-    dockDrawSpaceX(dctx, state.core.x, state.core.y, state.core.s, state.core.glow);
-    dockDrawHUD(dctx);
-    dockDrawScanlines(dctx);
-  }
-
-  function dockSfxOnce(key, fn) {
-    if (dockSfxFlags[key]) return;
-    dockSfxFlags[key] = true;
-    try { fn(); } catch (_) {}
-  }
-  function dockThrusterHum(dur, vol, fadeSec) {
+  function dockThrusterHum(dur, vol, pitch) {
     if (!actx) return;
-    const c = actx;
-    const o = c.createOscillator();
-    const o2 = c.createOscillator();
-    const g = c.createGain();
-    o.type = "sawtooth"; o.frequency.value = 55;
-    o2.type = "sine"; o2.frequency.value = 110;
-    const v = vol || 0.06;
-    const fade = fadeSec != null ? fadeSec : 1.2;
-    g.gain.setValueAtTime(0.001, c.currentTime);
-    g.gain.linearRampToValueAtTime(v, c.currentTime + 0.35);
-    const fadeStart = Math.max(0.4, dur - fade);
-    g.gain.setValueAtTime(v, c.currentTime + fadeStart);
-    g.gain.linearRampToValueAtTime(0.001, c.currentTime + dur);
-    o.connect(g); o2.connect(g); g.connect(c.destination);
-    o.start(); o2.start();
-    o.stop(c.currentTime + dur + 0.05);
-    o2.stop(c.currentTime + dur + 0.05);
+    try {
+      const c = actx;
+      const t0 = c.currentTime;
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = "sawtooth";
+      o.frequency.setValueAtTime(50 * (pitch || 1), t0);
+      g.gain.setValueAtTime(0.001, t0);
+      g.gain.linearRampToValueAtTime(vol, t0 + 0.3);
+      g.gain.linearRampToValueAtTime(vol * 0.7, t0 + dur * 0.8);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+      o.connect(g); g.connect(c.destination);
+      o.start(t0); o.stop(t0 + dur + 0.05);
+    } catch (_) {}
+  }
+  function dockSideHum(dur, vol) {
+    if (!actx) return;
+    try {
+      const c = actx;
+      const t0 = c.currentTime;
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = "sawtooth";
+      o.frequency.setValueAtTime(68, t0);
+      g.gain.setValueAtTime(0.001, t0);
+      g.gain.linearRampToValueAtTime(vol, t0 + 0.2);
+      g.gain.linearRampToValueAtTime(vol * 0.35, t0 + dur * 0.75);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+      o.connect(g); g.connect(c.destination);
+      o.start(t0); o.stop(t0 + dur + 0.05);
+    } catch (_) {}
   }
   function dockShuuu(dur, vol) {
     if (!actx) return;
-    const c = actx;
-    const t0 = c.currentTime;
-    const n = c.createBufferSource();
-    const len = Math.floor(c.sampleRate * dur);
-    const buf = c.createBuffer(1, len, c.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * 0.7;
-    n.buffer = buf;
-    const f = c.createBiquadFilter();
-    f.type = "bandpass";
-    f.frequency.setValueAtTime(1800, t0);
-    f.frequency.exponentialRampToValueAtTime(400, t0 + dur);
-    f.Q.value = 0.7;
-    const g = c.createGain();
-    const v = vol || 0.08;
-    g.gain.setValueAtTime(0.001, t0);
-    g.gain.linearRampToValueAtTime(v, t0 + 0.15);
-    g.gain.linearRampToValueAtTime(v * 0.55, t0 + dur * 0.45);
-    g.gain.linearRampToValueAtTime(0.001, t0 + dur);
-    n.connect(f); f.connect(g); g.connect(c.destination);
-    n.start(t0);
-    n.stop(t0 + dur + 0.05);
-  }
-  function dockTriggerSfx(t) {
-    if (t >= 2.7) dockSfxOnce("thrust", () => dockThrusterHum(5.85, 0.014, 0.35));
-    if (t >= 10.3) dockSfxOnce("side", () => dockThrusterHum(5.8, 0.006, 1.0));
+    try {
+      const c = actx;
+      const t0 = c.currentTime;
+      const n = c.createBufferSource();
+      const len = Math.floor(c.sampleRate * dur);
+      const buf = c.createBuffer(1, len, c.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * 0.7;
+      n.buffer = buf;
+      const f = c.createBiquadFilter();
+      f.type = "bandpass";
+      f.frequency.setValueAtTime(1500, t0);
+      f.frequency.exponentialRampToValueAtTime(320, t0 + dur);
+      f.Q.value = 0.7;
+      const g = c.createGain();
+      const v = vol || 0.065;
+      g.gain.setValueAtTime(0.001, t0);
+      g.gain.linearRampToValueAtTime(v, t0 + 0.12);
+      g.gain.linearRampToValueAtTime(v * 0.4, t0 + dur * 0.55);
+      g.gain.linearRampToValueAtTime(0.001, t0 + dur);
+      n.connect(f); f.connect(g); g.connect(c.destination);
+      n.start(t0); n.stop(t0 + dur + 0.05);
+    } catch (_) {}
   }
 
-  function dockDoFlash() {
+  // 今日は登場〜動きまで。発狂・自爆は後回し
+  const VOID_PHASES = [
+    { src: "void_phase1.png", label: "VOID — 出現", hold: 2000 },
+    { src: "void_phase2.png", label: "活動開始", hold: 1700 },
+    { src: "void_phase3.png", label: "重力場展開", hold: 1800 },
+  ];
+
+  function dockShowVoidPhase(i) {
     if (mode !== "dock") return;
-    dockPhase = "flash";
-    setDockStatus("FLASH");
-    if (dockFlashEl) dockFlashEl.style.opacity = "1";
+    if (i >= VOID_PHASES.length) {
+      setDockStatus("To Be Continued…");
+      setDockCap("");
+      dockLater(() => {
+        if (mode !== "dock") return;
+        showVoidEnd();
+      }, 1200);
+      return;
+    }
+    const ph = VOID_PHASES[i];
+    setDockStatus(ph.label);
+    if (dockVoid) {
+      // crossfade: brief fade out → swap src → fade in + slight scale
+      dockVoid.style.transition = "opacity 0.35s ease, transform 0.9s ease-out";
+      dockVoid.style.opacity = "0";
+      dockVoid.style.transform = "scale(1.06)";
+      dockLater(() => {
+        if (mode !== "dock") return;
+        dockVoid.src = ph.src;
+        void dockVoid.offsetWidth;
+        dockVoid.style.transition = "opacity 0.55s ease";
+        dockVoid.style.opacity = "1";
+        dockVoid.classList.remove("void-live", "void-intense");
+        if (dockVoidHaze) dockVoidHaze.classList.remove("on");
+        if (i === 0) {
+          try { dockShuuu(0.9, 0.05); } catch (_) {}
+        }
+        dockLater(() => dockShowVoidPhase(i + 1), ph.hold);
+      }, 360);
+    } else {
+      dockLater(() => dockShowVoidPhase(i + 1), ph.hold);
+    }
+  }
+
+  function dockDoVoid() {
+    if (mode !== "dock") return;
+    dockPhase = "void";
+    setDockStatus("THE VOID");
+    setDockCap("");
+    if (dockAssembled) {
+      dockAssembled.style.transition = "opacity 0.5s ease";
+      dockAssembled.style.opacity = "0";
+    }
+    // preload phase images
+    VOID_PHASES.forEach((p) => {
+      const im = new Image();
+      im.src = p.src;
+    });
+    if (dockVoid) {
+      dockVoid.style.transition = "none";
+      dockVoid.style.opacity = "0";
+      dockVoid.style.transform = "scale(1.08)";
+      dockVoid.src = VOID_PHASES[0].src;
+    }
+    try { dockShuuu(1.2, 0.04); } catch (_) {}
     dockLater(() => {
       if (mode !== "dock") return;
-      if (dockFlashEl) dockFlashEl.style.opacity = "0";
-      if (dockCanvas) dockCanvas.style.display = "none";
-      if (dockAssembled) {
-        dockAssembled.src = "assembled_ship.jpg";
-        dockAssembled.style.display = "block";
-        dockAssembled.style.left = "50%";
-        dockAssembled.style.top = "38%";
-        dockAssembled.style.transform = "translate(-50%, -50%)";
-      }
-      setDockStatus("ブースター＋スペースX号 出現");
-      dockPhase = "ship";
-      dockLater(dockDoDescend, 900);
-    }, 280);
+      dockShowVoidPhase(0);
+    }, 400);
   }
 
   function dockDoDescend() {
     if (mode !== "dock") return;
     dockPhase = "descend";
     setDockStatus("機体降下");
-    try { dockShuuu(2.2, 0.07); } catch (_) {}
+    setDockCap("地球軌道へ降下");
+    try { dockShuuu(1.9, 0.06); } catch (_) {}
     if (dockAssembled) {
-      // force reflow so CSS transition runs
-      void dockAssembled.offsetWidth;
-      dockAssembled.style.left = "50%";
-      dockAssembled.style.top = "78%";
-      dockAssembled.style.transform = "translate(-50%, -50%) scale(0.7)";
+      dockAssembled.style.transition = "top 1.9s ease-in-out, transform 1.9s ease-in-out, width 1.9s ease-in-out";
+      dockPlace(dockAssembled, "50%", "74%", "19%", 1, "translate(-50%, -50%) scale(0.78)");
     }
     dockLater(() => {
       if (mode !== "dock") return;
       setDockStatus("SEQUENCE COMPLETE");
-      showVoidEnd();
-    }, 2400);
+      dockDoVoid();
+    }, 2100);
   }
 
   /**
-   * NEW MISSION 了解後 → キャンバス・ドッキング演出 → 完了後 VOID
-   * （DOCK1〜6 静止画スライドは本線から外す）
+   * NEW MISSION 了解後 → 画像パーツ・ドッキング演出 → 完了後 VOID
    */
   function showDockSequence() {
     if (mode !== "newmission" && mode !== "dock") return;
@@ -8450,32 +8345,132 @@
     titleEl.classList.add("hidden");
     openingEl.classList.add("hidden");
     if (dockEl) dockEl.classList.remove("hidden");
-    if (dockCanvas) dockCanvas.style.display = "block";
-    if (dockAssembled) dockAssembled.style.display = "none";
-    if (dockFlashEl) dockFlashEl.style.opacity = "0";
-    setDockStatus("DOCKING SEQUENCE");
+
     ensureAudio();
     if (actx && actx.state === "suspended") {
       try { actx.resume(); } catch (_) {}
     }
     stopWaitBgm();
     stopOpeningBgm();
+
+    dockHideParts();
     dockPhase = "dock";
-    dockT0 = performance.now();
-    function loop(now) {
-      if (mode !== "dock" || dockPhase !== "dock") return;
-      let tsec = (now - dockT0) / 1000;
-      if (tsec >= DOCK_TOTAL) {
-        tsec = DOCK_TOTAL;
-        dockRender(dockUpdate(tsec));
-        dockDoFlash();
-        return;
+    setDockStatus("DOCKING SEQUENCE");
+    setDockCap("操縦艦待機");
+
+    // initial positions
+    dockPlace(dockCore, "50%", "42%", "16%", 0, "translate(-50%, -50%)");
+    dockPlace(dockMain, "92%", "82%", "12%", 0, "translate(-50%, -50%) scale(0.35) rotate(30deg)");
+    dockPlace(dockLeft, "8%", "78%", "6%", 0, "translate(-50%, -50%) scale(0.4) rotate(-18deg)");
+    dockPlace(dockRight, "92%", "78%", "6%", 0, "translate(-50%, -50%) scale(0.4) rotate(18deg)");
+    dockPlace(dockAssembled, "50%", "40%", "26%", 0, "translate(-50%, -50%)");
+    void (dockCore && dockCore.offsetWidth);
+
+    // 0.0s — core alone
+    if (dockCore) dockCore.style.transition = "opacity 0.4s ease";
+    dockPlace(dockCore, "50%", "42%", "16%", 1, "translate(-50%, -50%)");
+    setDockCap("操縦艦待機");
+    setDockStatus("CORE STANDBY");
+
+    // 0.5s — main booster approaches diagonally
+    dockLater(() => {
+      if (mode !== "dock") return;
+      setDockCap("巨大ブースター接近");
+      setDockStatus("MAIN BOOSTER APPROACH");
+      if (dockMain) {
+        dockMain.style.transition =
+          "opacity 0.4s ease, left 2.3s cubic-bezier(0.25,0.1,0.25,1), top 2.3s cubic-bezier(0.25,0.1,0.25,1), width 2.3s ease, transform 2.3s ease";
       }
-      dockRender(dockUpdate(tsec));
-      dockTriggerSfx(tsec);
-      dockAnimId = requestAnimationFrame(loop);
-    }
-    dockAnimId = requestAnimationFrame(loop);
+      dockPlace(dockMain, "50%", "42%", "30%", 1, "translate(-50%, -50%) scale(1) rotate(8deg)");
+      dockThrusterHum(2.7, 0.026, 1.0);
+    }, 500);
+
+    // 2.7s — booster straightens behind core
+    dockLater(() => {
+      if (mode !== "dock") return;
+      setDockCap("ブースター整列");
+      setDockStatus("ALIGN");
+      if (dockMain) dockMain.style.transition = "transform 0.7s ease, width 0.7s ease";
+      dockPlace(dockMain, "50%", "42%", "32%", 1, "translate(-50%, -50%) scale(1) rotate(0deg)");
+    }, 2700);
+
+    // 3.5s — core shrinks in place and mounts
+    dockLater(() => {
+      if (mode !== "dock") return;
+      setDockCap("装着中…");
+      setDockStatus("MOUNTING");
+      if (dockCore) {
+        dockCore.style.transition =
+          "width 1.0s cubic-bezier(0.4,0,0.2,1), top 1.0s ease, transform 1.0s cubic-bezier(0.4,0,0.2,1)";
+      }
+      dockPlace(dockCore, "50%", "40%", "11%", 1, "translate(-50%, -50%) scale(0.72)");
+    }, 3500);
+
+    // 4.6s — housed
+    dockLater(() => {
+      if (mode !== "dock") return;
+      setDockCap("巨大ブースター格納完了");
+      setDockStatus("CORE HOUSED");
+    }, 4600);
+
+    // 5.0s — side boosters from lower diagonal
+    dockLater(() => {
+      if (mode !== "dock") return;
+      setDockCap("サブブースター接近");
+      setDockStatus("SIDE BOOSTERS");
+      if (dockLeft) {
+        dockLeft.style.transition =
+          "opacity 0.35s ease, left 1.5s cubic-bezier(0.25,0.1,0.25,1), top 1.5s cubic-bezier(0.25,0.1,0.25,1), width 1.5s ease, transform 1.5s ease";
+      }
+      if (dockRight) {
+        dockRight.style.transition =
+          "opacity 0.35s ease, left 1.5s cubic-bezier(0.25,0.1,0.25,1), top 1.5s cubic-bezier(0.25,0.1,0.25,1), width 1.5s ease, transform 1.5s ease";
+      }
+      dockPlace(dockLeft, "40%", "40%", "13%", 1, "translate(-50%, -50%) scale(1) rotate(-2deg)");
+      dockPlace(dockRight, "60%", "40%", "13%", 1, "translate(-50%, -50%) scale(1) rotate(2deg)");
+      dockSideHum(1.8, 0.011);
+    }, 5000);
+
+    // 6.2s — sides lock flush
+    dockLater(() => {
+      if (mode !== "dock") return;
+      setDockCap("サブブースター結合");
+      setDockStatus("LOCKING");
+      dockPlace(dockLeft, "42.5%", "40%", "12%", 1, "translate(-50%, -50%) rotate(0deg)");
+      dockPlace(dockRight, "57.5%", "40%", "12%", 1, "translate(-50%, -50%) rotate(0deg)");
+    }, 6200);
+
+    // 7.0s — hold
+    dockLater(() => {
+      if (mode !== "dock") return;
+      setDockCap("完全合体形態");
+      setDockStatus("FULL BOOSTER ONLINE");
+    }, 7000);
+
+    // 7.5s — flash → assembled → descend
+    dockLater(() => {
+      if (mode !== "dock") return;
+      dockPhase = "flash";
+      if (dockFlashEl) dockFlashEl.style.opacity = "1";
+      setDockCap("ドッキング完了");
+      setDockStatus("FLASH");
+      dockLater(() => {
+        if (mode !== "dock") return;
+        if (dockCore) dockCore.style.opacity = "0";
+        if (dockMain) dockMain.style.opacity = "0";
+        if (dockLeft) dockLeft.style.opacity = "0";
+        if (dockRight) dockRight.style.opacity = "0";
+        if (dockAssembled) {
+          dockAssembled.style.transition = "opacity 0.15s ease";
+          dockPlace(dockAssembled, "50%", "40%", "26%", 1, "translate(-50%, -50%) scale(1)");
+        }
+        if (dockFlashEl) dockFlashEl.style.opacity = "0";
+        setDockStatus("FULL BOOSTER ONLINE");
+        setDockCap("完全合体形態");
+        dockPhase = "ship";
+        dockLater(dockDoDescend, 400);
+      }, 130);
+    }, 7500);
   }
 
   /** ドッキング完了後 → VOID 仮エンディング */
