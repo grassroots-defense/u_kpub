@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Grassroots Defense ver.4.4 · 2.5D — 草の根防衛</title>
+  <title>Grassroots Defense ver.4.5 · 2.5D — 草の根防衛</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -621,6 +621,17 @@
       pointer-events: none;
       transition: opacity 0.12s;
     }
+    #screen-flash {
+      position: absolute;
+      inset: 0;
+      background: #f4fbff;
+      opacity: 0;
+      z-index: 90;
+      pointer-events: none;
+      transition: opacity 0.08s linear;
+    }
+    #screen-flash.on { opacity: 1; transition: opacity 0.05s linear; }
+    #screen-flash.fade { opacity: 0; transition: opacity 0.5s ease-out; }
     #dock-void {
       position: absolute;
       inset: 0;
@@ -708,7 +719,7 @@
     }
     /* オープニング：枠いっぱい・中央寄せ・縦横比維持でできるだけ大きく */
     #opening.ui {
-      padding: 10px;
+      padding: 4px;
     }
     #opening .panel.op-panel {
       max-width: 100%;
@@ -717,33 +728,35 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      gap: 8px;
+      justify-content: flex-end;
+      gap: 4px;
       min-height: 0;
+      padding: 0;
     }
     .op-frame {
       flex: 1 1 auto;
       min-height: 0;
       width: 100%;
+      height: 100%;
       display: flex;
-      align-items: center;
+      align-items: stretch;
       justify-content: center;
-      border-radius: 6px;
-      border: 2px solid #5a9e48;
-      background: #122018;
+      border-radius: 4px;
+      border: 1px solid #5a9e48;
+      background: #0a1410;
       overflow: hidden;
-      /* タイトル・ヒント・ボタン分を残して最大化（キャンバス内） */
-      max-height: calc(100% - 120px);
-      min-height: 280px;
+      max-height: none;
+      min-height: 0;
+      padding: 0;
     }
     #op-poster {
       display: none;
-      max-width: 100%;
-      max-height: 100%;
-      width: auto;
-      height: auto;
+      max-width: none;
+      max-height: none;
+      width: 100%;
+      height: 100%;
       object-fit: contain;
-      object-position: center;
+      object-position: center top;
       margin: 0;
       border: none;
       border-radius: 0;
@@ -751,6 +764,62 @@
     }
     #op-poster.show {
       display: block;
+    }
+    /* ストーリー画像表示中は枠をキャンバスほぼ全面に */
+    #opening.story-mode {
+      padding: 0 !important;
+      background: rgba(8, 16, 12, 0.97);
+    }
+    #opening.story-mode #op-drama {
+      display: none !important;
+    }
+    #opening.story-mode .op-panel {
+      gap: 0 !important;
+      justify-content: flex-end !important;
+      height: 100% !important;
+    }
+    #opening.story-mode .op-frame {
+      flex: 1 1 auto !important;
+      width: 100% !important;
+      height: auto !important;
+      max-height: none !important;
+      min-height: 0 !important;
+      border: none !important;
+      border-radius: 0 !important;
+      background: #000 !important;
+    }
+    #opening.story-mode #op-poster.show {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: contain !important;
+      object-position: center center !important;
+    }
+    #opening.story-mode .op-hint {
+      position: absolute;
+      left: 0; right: 0;
+      bottom: 52px;
+      z-index: 2;
+      text-align: center;
+      pointer-events: none;
+      text-shadow: 0 1px 4px #000, 0 0 8px #000;
+      color: #c8e870 !important;
+      font-size: 0.72rem !important;
+    }
+    #opening.story-mode .op-actions {
+      position: absolute;
+      left: 0; right: 0;
+      bottom: 8px;
+      z-index: 2;
+      min-height: 0 !important;
+    }
+    #opening.story-mode #op-start {
+      padding: 8px 28px;
+      font-size: 0.95rem;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.55);
+    }
+    #opening #op-next {
+      padding: 8px 28px;
+      font-size: 0.95rem;
     }
     .op-story {
       font-size: 0.92rem !important;
@@ -778,6 +847,9 @@
     }
     #opening .op-hint {
       flex: 0 0 auto;
+      margin: 0 !important;
+      padding: 0;
+      font-size: 0.7rem !important;
     }
     #opening #op-next,
     #opening #op-skip,
@@ -789,8 +861,9 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 8px;
-      min-height: 48px;
+      gap: 4px;
+      min-height: 0;
+      margin-bottom: 2px;
     }
     #op-skip {
       min-width: 120px;
@@ -864,11 +937,12 @@
   </style>
 </head>
 <body>
-  <h1>Grassroots Defense <span style="font-size:0.75em;opacity:.7">ver.4.4 · 2.5D</span></h1>
+  <h1>Grassroots Defense <span style="font-size:0.75em;opacity:.7">ver.4.5 · 2.5D</span></h1>
   <p class="sub">草の根の知恵で、環境破壊を跳ね返す — 奥行きのある大地</p>
 
   <div id="wrap">
     <canvas id="c" width="480" height="560"></canvas>
+    <div id="screen-flash" aria-hidden="true"></div>
 
     <div id="opening" class="ui">
       <div class="panel op-panel">
@@ -917,7 +991,7 @@
             <li>スペースX号 … 耐久2（3発でゲームオーバー）</li>
           </ul>
         </div>
-        <p class="howto-hint">ゲームスタート = ENTER・難易度は 1〜4 で切替</p>
+        <p class="howto-hint">ゲームスタート / ENTER · 難易度は 1〜4 で切替</p>
         <p id="howto-diff-label" style="text-align:center;font-size:0.78rem;color:#80d0a0;margin:8px 0 2px;">難易度: イージー（攻撃−30%）</p>
         <p style="text-align:center;font-size:0.68rem;color:#8aaa78;margin-bottom:8px;">
           <kbd>1</kbd> E · <kbd>2</kbd> N · <kbd>3</kbd> H · <kbd>4</kbd> SH
@@ -931,7 +1005,7 @@
     <div id="title" class="ui hidden">
       <div class="panel">
         <h2>草の根防衛ユニット X</h2>
-        <p style="font-size:0.78rem;color:#8aaa78;margin:-4px 0 8px;">ver.4.4 · 2.5D</p>
+        <p style="font-size:0.78rem;color:#8aaa78;margin:-4px 0 8px;">ver.4.5 · 2.5D</p>
         <p>
           浮遊メカで汚染を撃ち落とし、<br />
           種と知恵で世界を緑に変えよう。
@@ -1053,7 +1127,7 @@
     </div>
   </div>
 
-  <p class="foot">スペースインベーダー風 · ver.4.4 · 2.5D · ユニットX · WAVE1〜8 · Pでポーズ</p>
+  <p class="foot">スペースインベーダー風 · ver.4.5 · 2.5D · ユニットX · WAVE1〜8 · Pでポーズ</p>
 
   <script>
 (() => {
@@ -1119,17 +1193,16 @@
   const opDrama = document.getElementById("op-drama");
 
   /**
-   * オープニング画像（ファイル名は現状維持）
-   * 0: タイトル（スタート／Enter。Enter連打→イージー即本編）
-   * 1〜最終: 3連オープニング（自動1.8秒。2枚目以降スキップ→説明画面。最終は NEXT）
+   * オープニング
+   * 0: GGDOP0 アクセス（スタート／Enter）
+   * 1: OPINFO ストーリー説明（NEXT／Enter → howto）
+   * GGDOP1〜3 パラパラは廃止
    */
   const OPENING_SLIDES = [
-    { title: "Grassroots Begin", image: "GGDOP0.png" },
-    { title: "THEY TOOK EVERYTHING", image: "GGDOP1.png" },
-    { title: "WE FOUGHT BACK", image: "GGDOP2.png" },
-    { title: "DEFEND THE SEED", image: "GGDOP3.png" },
+    { title: "Grassroots Begin", image: "GGDOP0.png", role: "access" },
+    { title: "WORLD STORY", image: "OPINFO.png", role: "story" },
   ];
-  const OPENING_AUTO_MS = 1800;
+  const OPENING_AUTO_MS = 1800; // 未使用
   /** タイトルで Enter 連打判定の窓（ms） */
   const TITLE_ENTER_MASH_MS = 320;
   let openingStep = 0;
@@ -7940,17 +8013,36 @@
     }, OPENING_AUTO_MS);
   }
 
-  /** タイトルから3連オープニングへ */
-  function leaveTitleToStory() {
+  /** アクセス → OPINFO（ストーリー） */
+  function leaveAccessToStory() {
     if (mode !== "opening" || !isOpeningTitleSlide()) return;
     clearTitleEnterDebounce();
-    advanceOpening(true);
+    clearOpeningTimer();
+    ensureAudio();
+    if (actx && actx.state === "suspended") {
+      try { actx.resume(); } catch (_) {}
+    }
+    try { sfxConfirm(); } catch (_) {}
+    openingStep = 1;
+    applyOpeningSlide();
+  }
+
+  /** OPINFO → howto（操作説明） */
+  function leaveStoryToHowto() {
+    if (mode !== "opening" || openingStep < 1) return;
+    clearOpeningTimer();
+    ensureAudio();
+    if (actx && actx.state === "suspended") {
+      try { actx.resume(); } catch (_) {}
+    }
+    try { sfxConfirm(); } catch (_) {}
+    showHowto();
   }
 
   /**
-   * タイトル操作。
-   * fromButton=true: スタートクリック → 3連へ
-   * Enter: 単発は少し待って3連へ／連打はイージーで本編直スタート
+   * タイトル（アクセス）操作。
+   * スタート／Enter → OPINFO
+   * Enter連打 → イージーで本編直スタート
    */
   function handleTitleStart(fromButton) {
     if (mode !== "opening" || !isOpeningTitleSlide()) return;
@@ -7959,10 +8051,9 @@
       try { actx.resume(); } catch (_) {}
     }
     if (fromButton) {
-      leaveTitleToStory();
+      leaveAccessToStory();
       return;
     }
-    // Enter 連打判定
     titleEnterCount++;
     if (titleEnterCount >= 2) {
       clearTitleEnterDebounce();
@@ -7976,71 +8067,57 @@
       titleEnterDebounce = null;
       titleEnterCount = 0;
       if (mode === "opening" && isOpeningTitleSlide()) {
-        leaveTitleToStory();
+        leaveAccessToStory();
       }
     }, TITLE_ENTER_MASH_MS);
   }
 
-  /** 3連オープニング中：説明画面へジャンプ */
-  function jumpToHowtoFromOpening() {
-    if (mode !== "opening" || !isOpeningStorySlide()) return;
-    clearOpeningTimer();
-    ensureAudio();
-    if (actx && actx.state === "suspended") {
-      try { actx.resume(); } catch (_) {}
-    }
-    try { sfxConfirm(); } catch (_) {}
-    showHowto();
-  }
-
-  /** Enter / ボタンの確定処理 */
+  /** Enter / ボタンの確定処理（アクセス or OPINFO） */
   function handleOpeningConfirm() {
     if (mode !== "opening") return;
     if (isOpeningTitleSlide()) {
       handleTitleStart(false);
       return;
     }
-    // 3連中（最終含む）：スキップ／NEXT／Enter → 説明画面
-    jumpToHowtoFromOpening();
+    // OPINFO：NEXT / Enter → howto
+    leaveStoryToHowto();
   }
 
   function applyOpeningSlide() {
+    if (openingStep < 0) openingStep = 0;
+    if (openingStep >= OPENING_SLIDES.length) openingStep = OPENING_SLIDES.length - 1;
     const slide = OPENING_SLIDES[openingStep] || OPENING_SLIDES[0];
-    const isTitle = isOpeningTitleSlide();
-    const isLast = isOpeningLastSlide();
-    const showSkip = isOpeningSkipSlide();
+    const isAccess = openingStep === 0;
+    const isStory = openingStep === 1;
+    if (openingEl) {
+      openingEl.classList.toggle("story-mode", !!isStory);
+    }
     if (opDrama) {
-      opDrama.textContent = slide.title;
-      opDrama.style.display = "";
+      // 画像内にタイトルがあるので枠上テキストは控えめ／ストーリーは非表示寄り
+      opDrama.textContent = isAccess ? slide.title : "";
+      opDrama.style.display = isAccess ? "" : "none";
     }
-    // タイトル：スタート
-    // 3連（最終以外）：スキップ（THEY TOOK EVERYTHING 含む全枚）
-    // 最終：説明画面へ
-    if (opSkipBtn) {
-      if (showSkip) opSkipBtn.classList.remove("hidden");
-      else opSkipBtn.classList.add("hidden");
-    }
+    if (opSkipBtn) opSkipBtn.classList.add("hidden");
     if (opStartBtn) {
-      if (isTitle) {
+      if (isAccess) {
         opStartBtn.textContent = "スタート";
         opStartBtn.classList.remove("hidden");
-      } else if (isLast) {
-        opStartBtn.textContent = "説明画面へ";
+      } else if (isStory) {
+        opStartBtn.textContent = "NEXT";
         opStartBtn.classList.remove("hidden");
       } else {
         opStartBtn.classList.add("hidden");
       }
     }
     if (opHintEl) {
-      if (isTitle) {
-        opHintEl.textContent = "スタート = ENTER · 連打でイージー即開始";
-      } else if (isLast) {
-        opHintEl.textContent = "説明画面へ = ENTER";
+      if (isAccess) {
+        opHintEl.textContent = "スタート = ENTER → ストーリー · 連打でイージー即開始";
+      } else if (isStory) {
+        opHintEl.textContent = "NEXT / ENTER → 操作説明";
       } else {
-        opHintEl.textContent = "スキップ = ENTER · 約1.8秒で自動";
+        opHintEl.textContent = "";
       }
     }
-    // 各スライドで GGDOP0〜3.png を枠内中央・縦横比維持で大きく表示
     if (opPoster) {
       const src = slide.image;
       opPoster.alt = slide.title || "Opening";
@@ -8059,7 +8136,7 @@
         opPoster.classList.add("show");
       }
     }
-    scheduleOpeningAuto();
+    clearOpeningTimer();
   }
 
   function hideVoidEnd() {
@@ -8355,24 +8432,58 @@
 
     dockHideParts();
     dockPhase = "dock";
-    setDockStatus("DOCKING SEQUENCE");
-    setDockCap("操縦艦待機");
+    setDockStatus("ASCENT");
+    setDockCap("軌道へ上昇");
 
-    // initial positions
-    dockPlace(dockCore, "50%", "42%", "16%", 0, "translate(-50%, -50%)");
-    dockPlace(dockMain, "92%", "82%", "12%", 0, "translate(-50%, -50%) scale(0.35) rotate(30deg)");
-    dockPlace(dockLeft, "8%", "78%", "6%", 0, "translate(-50%, -50%) scale(0.4) rotate(-18deg)");
-    dockPlace(dockRight, "92%", "78%", "6%", 0, "translate(-50%, -50%) scale(0.4) rotate(18deg)");
-    dockPlace(dockAssembled, "50%", "40%", "26%", 0, "translate(-50%, -50%)");
+    /* ========== 基準座標（本来シーケンスのホーム） ==========
+       HOME_TOP = 42%
+       CORE_STANDBY = left 50% / top 42% / width 16% / scale(1)
+       MAIN_ALIGN   = left 50% / top 42% / width 32% / scale(1)
+       CORE_MOUNT   = left 50% / top 42% / width 11% / scale(0.72)
+       SIDE_LOCK    = left 42.5%|57.5% / top 42% / width 12% / scale(1)
+       ====================================================== */
+
+    // ブースターは完全に画面外待機
+    if (dockMain) dockMain.style.transition = "none";
+    if (dockLeft) dockLeft.style.transition = "none";
+    if (dockRight) dockRight.style.transition = "none";
+    if (dockAssembled) dockAssembled.style.transition = "none";
+    dockPlace(dockMain, "120%", "110%", "12%", 0, "translate(-50%, -50%) scale(0.35) rotate(30deg)");
+    dockPlace(dockLeft, "-20%", "110%", "6%", 0, "translate(-50%, -50%) scale(0.4) rotate(-18deg)");
+    dockPlace(dockRight, "120%", "110%", "6%", 0, "translate(-50%, -50%) scale(0.4) rotate(18deg)");
+    dockPlace(dockAssembled, "50%", "42%", "26%", 0, "translate(-50%, -50%)");
+
+    // 操縦艦：画面外下・縮小 → 徐々に拡大しながら CORE_STANDBY へ着地
+    if (dockCore) dockCore.style.transition = "none";
+    dockPlace(dockCore, "50%", "118%", "9%", 1, "translate(-50%, -50%) scale(0.28)");
     void (dockCore && dockCore.offsetWidth);
 
-    // 0.0s — core alone
-    if (dockCore) dockCore.style.transition = "opacity 0.4s ease";
-    dockPlace(dockCore, "50%", "42%", "16%", 1, "translate(-50%, -50%)");
-    setDockCap("操縦艦待機");
-    setDockStatus("CORE STANDBY");
+    // 0.05s — 上昇開始（着地座標＝本来の操縦艦待機位置と同一）
+    dockLater(() => {
+      if (mode !== "dock") return;
+      setDockCap("自機上昇");
+      setDockStatus("ASCENDING");
+      if (dockCore) {
+        dockCore.style.transition =
+          "top 1.9s cubic-bezier(0.22,0.08,0.2,1), width 1.9s cubic-bezier(0.22,0.08,0.2,1), transform 1.9s cubic-bezier(0.22,0.08,0.2,1), opacity 0.25s ease";
+      }
+      // ★ CORE_STANDBY（本来シーケンスの定位置）
+      dockPlace(dockCore, "50%", "42%", "16%", 1, "translate(-50%, -50%) scale(1)");
+    }, 50);
 
-    // 0.5s — main booster approaches diagonally
+    // 2.05s — 定位置で完全停止 → ここから本来の DOCKING SEQUENCE
+    dockLater(() => {
+      if (mode !== "dock") return;
+      // 着地後に transition を切ってサイズ・位置を固定（以降ズレ防止）
+      if (dockCore) {
+        dockCore.style.transition = "none";
+        dockPlace(dockCore, "50%", "42%", "16%", 1, "translate(-50%, -50%) scale(1)");
+      }
+      setDockCap("操縦艦待機");
+      setDockStatus("DOCKING SEQUENCE");
+    }, 2050);
+
+    // 2.5s — メイン接近（基準 top 42%）
     dockLater(() => {
       if (mode !== "dock") return;
       setDockCap("巨大ブースター接近");
@@ -8383,71 +8494,80 @@
       }
       dockPlace(dockMain, "50%", "42%", "30%", 1, "translate(-50%, -50%) scale(1) rotate(8deg)");
       dockThrusterHum(2.7, 0.026, 1.0);
-    }, 500);
+    }, 2500);
 
-    // 2.7s — booster straightens behind core
+    // 4.7s — メイン整列（MAIN_ALIGN）
     dockLater(() => {
       if (mode !== "dock") return;
       setDockCap("ブースター整列");
       setDockStatus("ALIGN");
       if (dockMain) dockMain.style.transition = "transform 0.7s ease, width 0.7s ease";
       dockPlace(dockMain, "50%", "42%", "32%", 1, "translate(-50%, -50%) scale(1) rotate(0deg)");
-    }, 2700);
+    }, 4700);
 
-    // 3.5s — core shrinks in place and mounts
+    // 5.5s — 操縦艦装着（CORE_MOUNT：同じ top 42%、サイズだけ縮小）
     dockLater(() => {
       if (mode !== "dock") return;
       setDockCap("装着中…");
       setDockStatus("MOUNTING");
       if (dockCore) {
         dockCore.style.transition =
-          "width 1.0s cubic-bezier(0.4,0,0.2,1), top 1.0s ease, transform 1.0s cubic-bezier(0.4,0,0.2,1)";
+          "width 1.0s cubic-bezier(0.4,0,0.2,1), transform 1.0s cubic-bezier(0.4,0,0.2,1)";
       }
-      dockPlace(dockCore, "50%", "40%", "11%", 1, "translate(-50%, -50%) scale(0.72)");
-    }, 3500);
+      dockPlace(dockCore, "50%", "42%", "11%", 1, "translate(-50%, -50%) scale(0.72)");
+    }, 5500);
 
-    // 4.6s — housed
+    // 6.6s — housed
     dockLater(() => {
       if (mode !== "dock") return;
       setDockCap("巨大ブースター格納完了");
       setDockStatus("CORE HOUSED");
-    }, 4600);
+    }, 6600);
 
-    // 5.0s — side boosters from lower diagonal
+    // 7.0s — side boosters: 左右外からメイン側面へ接近
+    // メインは center 50% / width 32% → 左右端はおおよそ 34% と 66%
     dockLater(() => {
       if (mode !== "dock") return;
       setDockCap("サブブースター接近");
       setDockStatus("SIDE BOOSTERS");
-      if (dockLeft) {
-        dockLeft.style.transition =
-          "opacity 0.35s ease, left 1.5s cubic-bezier(0.25,0.1,0.25,1), top 1.5s cubic-bezier(0.25,0.1,0.25,1), width 1.5s ease, transform 1.5s ease";
-      }
-      if (dockRight) {
-        dockRight.style.transition =
-          "opacity 0.35s ease, left 1.5s cubic-bezier(0.25,0.1,0.25,1), top 1.5s cubic-bezier(0.25,0.1,0.25,1), width 1.5s ease, transform 1.5s ease";
-      }
-      dockPlace(dockLeft, "40%", "40%", "13%", 1, "translate(-50%, -50%) scale(1) rotate(-2deg)");
-      dockPlace(dockRight, "60%", "40%", "13%", 1, "translate(-50%, -50%) scale(1) rotate(2deg)");
+      if (dockLeft) dockLeft.style.transition = "none";
+      if (dockRight) dockRight.style.transition = "none";
+      dockPlace(dockLeft, "-15%", "42%", "11%", 0, "translate(-50%, -50%) scale(0.9) rotate(-8deg)");
+      dockPlace(dockRight, "115%", "42%", "11%", 0, "translate(-50%, -50%) scale(0.9) rotate(8deg)");
+      void (dockLeft && dockLeft.offsetWidth);
+      void (dockRight && dockRight.offsetWidth);
+      const sideEase =
+        "opacity 0.3s ease, left 1.5s cubic-bezier(0.25,0.1,0.25,1), top 1.5s cubic-bezier(0.25,0.1,0.25,1), width 1.5s ease, transform 1.5s ease";
+      if (dockLeft) dockLeft.style.transition = sideEase;
+      if (dockRight) dockRight.style.transition = sideEase;
+      // メイン側面の少し外側まで接近
+      dockPlace(dockLeft, "40%", "42%", "13%", 1, "translate(-50%, -50%) scale(1) rotate(-2deg)");
+      dockPlace(dockRight, "60%", "42%", "13%", 1, "translate(-50%, -50%) scale(1) rotate(2deg)");
       dockSideHum(1.8, 0.011);
-    }, 5000);
+    }, 7000);
 
-    // 6.2s — sides lock flush
+    // 8.2s — メイン側面に密着（センターブースターにくっつける）
     dockLater(() => {
       if (mode !== "dock") return;
       setDockCap("サブブースター結合");
       setDockStatus("LOCKING");
-      dockPlace(dockLeft, "42.5%", "40%", "12%", 1, "translate(-50%, -50%) rotate(0deg)");
-      dockPlace(dockRight, "57.5%", "40%", "12%", 1, "translate(-50%, -50%) rotate(0deg)");
-    }, 6200);
+      const lockEase =
+        "left 0.65s cubic-bezier(0.4,0,0.2,1), top 0.65s ease, width 0.65s ease, transform 0.65s ease";
+      if (dockLeft) dockLeft.style.transition = lockEase;
+      if (dockRight) dockRight.style.transition = lockEase;
+      // メイン width 32% の左右端に重なる位置
+      dockPlace(dockLeft, "42.5%", "42%", "12%", 1, "translate(-50%, -50%) scale(1) rotate(0deg)");
+      dockPlace(dockRight, "57.5%", "42%", "12%", 1, "translate(-50%, -50%) scale(1) rotate(0deg)");
+    }, 8200);
 
-    // 7.0s — hold
+    // 9.0s — hold
     dockLater(() => {
       if (mode !== "dock") return;
       setDockCap("完全合体形態");
       setDockStatus("FULL BOOSTER ONLINE");
-    }, 7000);
+    }, 9000);
 
-    // 7.5s — flash → assembled → descend
+    // 9.5s — flash → assembled → descend
     dockLater(() => {
       if (mode !== "dock") return;
       dockPhase = "flash";
@@ -8456,13 +8576,16 @@
       setDockStatus("FLASH");
       dockLater(() => {
         if (mode !== "dock") return;
-        if (dockCore) dockCore.style.opacity = "0";
-        if (dockMain) dockMain.style.opacity = "0";
-        if (dockLeft) dockLeft.style.opacity = "0";
-        if (dockRight) dockRight.style.opacity = "0";
+        // 個別パーツを完全に消す（transition を切って残像防止）
+        for (const el of [dockCore, dockMain, dockLeft, dockRight]) {
+          if (!el) continue;
+          el.style.transition = "none";
+          el.style.opacity = "0";
+          el.style.pointerEvents = "none";
+        }
         if (dockAssembled) {
           dockAssembled.style.transition = "opacity 0.15s ease";
-          dockPlace(dockAssembled, "50%", "40%", "26%", 1, "translate(-50%, -50%) scale(1)");
+          dockPlace(dockAssembled, "50%", "42%", "26%", 1, "translate(-50%, -50%) scale(1)");
         }
         if (dockFlashEl) dockFlashEl.style.opacity = "0";
         setDockStatus("FULL BOOSTER ONLINE");
@@ -8470,7 +8593,7 @@
         dockPhase = "ship";
         dockLater(dockDoDescend, 400);
       }, 130);
-    }, 7500);
+    }, 9500);
   }
 
   /** ドッキング完了後 → VOID 仮エンディング */
@@ -8552,26 +8675,87 @@
     if (newmissionEl) newmissionEl.classList.remove("hidden");
   }
 
+  /** シュパー（高速スウィープ） */
+  function sfxWhoosh() {
+    if (!audioOk || !actx) {
+      ensureAudio();
+      if (!audioOk || !actx) return;
+    }
+    try {
+      const t0 = actx.currentTime;
+      const o1 = actx.createOscillator();
+      const g1 = actx.createGain();
+      o1.type = "sawtooth";
+      o1.frequency.setValueAtTime(2200, t0);
+      o1.frequency.exponentialRampToValueAtTime(260, t0 + 0.42);
+      g1.gain.setValueAtTime(0.001, t0);
+      g1.gain.linearRampToValueAtTime(0.09, t0 + 0.02);
+      g1.gain.exponentialRampToValueAtTime(0.001, t0 + 0.48);
+      o1.connect(g1);
+      g1.connect(actx.destination);
+      o1.start(t0);
+      o1.stop(t0 + 0.5);
+
+      const o2 = actx.createOscillator();
+      const g2 = actx.createGain();
+      o2.type = "square";
+      o2.frequency.setValueAtTime(880, t0);
+      o2.frequency.exponentialRampToValueAtTime(110, t0 + 0.36);
+      g2.gain.setValueAtTime(0.001, t0);
+      g2.gain.linearRampToValueAtTime(0.05, t0 + 0.015);
+      g2.gain.exponentialRampToValueAtTime(0.001, t0 + 0.4);
+      o2.connect(g2);
+      g2.connect(actx.destination);
+      o2.start(t0);
+      o2.stop(t0 + 0.42);
+
+      const o3 = actx.createOscillator();
+      const g3 = actx.createGain();
+      o3.type = "sine";
+      o3.frequency.setValueAtTime(160, t0 + 0.05);
+      o3.frequency.exponentialRampToValueAtTime(50, t0 + 0.55);
+      g3.gain.setValueAtTime(0.001, t0 + 0.05);
+      g3.gain.linearRampToValueAtTime(0.065, t0 + 0.1);
+      g3.gain.exponentialRampToValueAtTime(0.001, t0 + 0.6);
+      o3.connect(g3);
+      g3.connect(actx.destination);
+      o3.start(t0 + 0.05);
+      o3.stop(t0 + 0.62);
+    } catch (_) {}
+  }
+
   /**
-   * GO! → サイレン停止 → バン！と同時に NEW MISSION。
-   * AudioContext resume 完了後に爆音→画面切替（音遅れ防止）。
+   * GO! → サイレン停止 → シュパー＋白フラッシュ → ドッキング（自機上昇から）。
+   * NEW MISSION 静止画ポン切替はやめ、ドッキングシーケンス先頭に上昇を組み込む。
    */
   let goingToNewMission = false;
   function goToNewMission() {
     if (mode !== "emergency" || goingToNewMission) return;
     goingToNewMission = true;
     stopSiren();
-    resumeAudio().then(() => {
-      // 衝撃音を先に（または同時に）鳴らしてから画面切替
-      sfxLaunchBoom();
-      // 音の立ち上がりと画面を揃える（約1フレーム相当で即切替）
-      showNewMissionUI();
-      goingToNewMission = false;
-    }).catch(() => {
-      sfxLaunchBoom();
-      showNewMissionUI();
-      goingToNewMission = false;
-    });
+    const run = () => {
+      sfxWhoosh();
+      const flash = document.getElementById("screen-flash");
+      if (flash) {
+        flash.classList.remove("fade");
+        flash.classList.add("on");
+      }
+      // 白ピーク裏でドッキング開始（上昇演出込み）
+      requestAnimationFrame(() => {
+        // showDockSequence は newmission / dock / emergency から入れる
+        mode = "newmission";
+        showDockSequence();
+        if (flash) {
+          setTimeout(() => {
+            flash.classList.remove("on");
+            flash.classList.add("fade");
+            setTimeout(() => flash.classList.remove("fade"), 550);
+          }, 80);
+        }
+        goingToNewMission = false;
+      });
+    };
+    resumeAudio().then(run).catch(run);
   }
 
   /** オープニング1枚目（タイトル）へ — ドッキング完了後など */
@@ -8714,23 +8898,20 @@
   }
   if (opSkipBtn) {
     opSkipBtn.onclick = () => {
+      // スキップは未使用（非表示）
       if (mode !== "opening") return;
-      // 2枚目以降のスキップ → 説明画面へ
-      if (!isOpeningSkipSlide() && !isOpeningLastSlide()) return;
-      jumpToHowtoFromOpening();
+      handleOpeningConfirm();
     };
   }
   if (opStartBtn) {
     opStartBtn.onclick = () => {
       if (mode !== "opening") return;
       if (isOpeningTitleSlide()) {
-        handleTitleStart(true); // クリックは連打判定なしで3連へ
+        handleTitleStart(true); // アクセス → OPINFO
         return;
       }
-      if (isOpeningLastSlide()) {
-        jumpToHowtoFromOpening();
-        return;
-      }
+      // OPINFO の NEXT → howto
+      leaveStoryToHowto();
     };
   }
   // 旧 NEXT（非表示・互換）
