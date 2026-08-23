@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THE VOID — Phase 1 Visual Test</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#050510;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    font-family: system-ui, sans-serif;
+    color:#c8b8ff;
+  }
+  canvas {
+    display:block;
+    background:#000;
+    border:1px solid #2a1a4a;
+    max-width:100%;
+  }
+  .ui {
+    margin-top:10px;
+    font-size:13px;
+    opacity:0.85;
+    text-align:center;
+    line-height:1.6;
+  }
+  .ui kbd {
+    background:#1a1230;
+    padding:2px 6px;
+    border-radius:3px;
+    border:1px solid #3a2a5a;
+  }
+</style>
+</head>
+<body>
+<canvas id="c" width="480" height="560"></canvas>
+<div class="ui">
+  THE VOID — Phase1（お気に入り忠実）<br>
+  <kbd>R</kbd> リセット　｜　ガスコア＋円リング＋うねうね惑星群<br>
+  更新後はアドレス欄で Enter（F5が効かない場合あり）
+</div>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = canvas.width;
+const H = canvas.height;
+
+const shipImg = new Image();
+shipImg.src = 'assembled_ship.png';
+
+const stars = Array.from({ length: 90 }, () => ({
+  x: Math.random() * W,
+  y: Math.random() * H,
+  s: Math.random() * 1.4 + 0.3,
+  a: Math.random() * 0.45 + 0.2,
+  tw: Math.random() * Math.PI * 2,
+}));
+
+const core = { x: W * 0.5, y: H * 0.30, r: 70 };
+
+// ========== ① ガスコア ==========
+function drawCoreVoid(time) {
+  // —— 周りのガスを濃く（コア本体は触らない）——
+  const breath = 0.65 + 0.35 * (0.5 + 0.5 * Math.sin(time * 0.65));
+  const breath2 = 0.55 + 0.45 * Math.sin(time * 1.05 + 0.8);
+
+  // 広い外郭ガス
+  const fog = ctx.createRadialGradient(core.x, core.y, core.r * 0.35, core.x, core.y, core.r * 2.9);
+  fog.addColorStop(0, `rgba(55,22,105,${0.15 * breath})`);
+  fog.addColorStop(0.2, `rgba(70,30,125,${0.5 * breath})`);
+  fog.addColorStop(0.4, `rgba(50,20,95,${0.4 * breath})`);
+  fog.addColorStop(0.65, `rgba(30,12,60,${0.22 * breath})`);
+  fog.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = fog;
+  ctx.beginPath();
+  ctx.arc(core.x, core.y, core.r * 2.9, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 中間帯の濃いモヤ（コア周縁）
+  const mid = ctx.createRadialGradient(core.x, core.y, core.r * 0.5, core.x, core.y, core.r * 1.8);
+  mid.addColorStop(0, 'rgba(40,15,80,0)');
+  mid.addColorStop(0.35, `rgba(80,35,140,${0.38 * breath2})`);
+  mid.addColorStop(0.7, `rgba(55,22,100,${0.28 * breath2})`);
+  mid.addColorStop(1, 'rgba(20,8,40,0)');
+  ctx.fillStyle = mid;
+  ctx.beginPath();
+  ctx.arc(core.x, core.y, core.r * 1.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 漂う塊（周り専用）
+  for (let i = 0; i < 12; i++) {
+    const ang = time * 0.09 + i * 0.55;
+    const dist = core.r * (0.55 + (i % 5) * 0.22);
+    const cx = core.x + Math.cos(ang) * dist * 0.95;
+    const cy = core.y + Math.sin(ang * 0.88) * dist * 0.62;
+    const rr = core.r * (0.32 + (i % 4) * 0.1);
+    const local = 0.55 + 0.45 * Math.sin(time * 0.85 + i * 1.1);
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rr);
+    g.addColorStop(0, `rgba(100,50,160,${(0.22 + (i % 3) * 0.07) * breath * local})`);
+    g.addColorStop(0.5, `rgba(60,25,110,${0.12 * breath * local})`);
+    g.addColorStop(1, 'rgba(20,8,40,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(cx, cy, rr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 暗い核
+  const body = ctx.createRadialGradient(core.x - 8, core.y - 12, 3, core.x, core.y, core.r);
+  body.addColorStop(0, 'rgba(28,16,30,0.5)');
+  body.addColorStop(0.4, 'rgba(10,5,14,0.9)');
+  body.addColorStop(0.8, 'rgba(4,2,8,0.8)');
+  body.addColorStop(1, 'rgba(2,1,5,0)');
+  ctx.fillStyle = body;
+  ctx.beginPath();
+  ctx.arc(core.x, core.y, core.r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // —— 単独スパーク（同時に全方向は撃たない）——
+  // 各スロットが別タイミングで1本だけ走って消える
+  ctx.lineCap = 'round';
+  const slots = 8;
+  for (let i = 0; i < slots; i++) {
+    // 位相を大きくずらす → ほぼ同時に何本も出ない
+    const cycle = 2.8 + (i % 3) * 0.4; // 周期秒
+    const phase = (time + i * 1.37) % cycle;
+    // 発光区間は短い（0〜0.45秒相当）
+    if (phase > 0.55) continue;
+
+    const progress = phase / 0.55; // 0→1
+    // 出現時だけ見える
+    const alpha = Math.sin(progress * Math.PI);
+    if (alpha < 0.08) continue;
+
+    // 方向はスロット固定＋わずかに揺れる
+    const baseAng = (i / slots) * Math.PI * 2 + Math.sin(i * 2.1) * 0.15;
+    const maxLen = core.r * (0.75 + (i % 3) * 0.12);
+    // 光が外側へ走る：尾→頭
+    const head = Math.min(1, progress * 1.2);
+    const tail = Math.max(0, head - 0.4);
+
+    const segs = 4;
+    const jag = core.r * 0.05;
+    // グロー
+    ctx.beginPath();
+    let started = false;
+    for (let s = 0; s <= segs; s++) {
+      const t = tail + (head - tail) * (s / segs);
+      if (t <= 0.01) continue;
+      const j = Math.sin(i * 3 + s * 2 + time * 0.5) * jag * (1 - t);
+      const x = core.x + Math.cos(baseAng) * maxLen * t - Math.sin(baseAng) * j;
+      const y = core.y + Math.sin(baseAng) * maxLen * t + Math.cos(baseAng) * j;
+      if (!started) { ctx.moveTo(x, y); started = true; }
+      else ctx.lineTo(x, y);
+    }
+    if (started) {
+      ctx.strokeStyle = `rgba(200,140,255,${0.25 * alpha})`;
+      ctx.lineWidth = 5;
+      ctx.stroke();
+    }
+    // 芯
+    ctx.beginPath();
+    started = false;
+    for (let s = 0; s <= segs; s++) {
+      const t = tail + (head - tail) * (s / segs);
+      if (t <= 0.01) continue;
+      const j = Math.sin(i * 3 + s * 2 + time * 0.5) * jag * (1 - t);
+      const x = core.x + Math.cos(baseAng) * maxLen * t - Math.sin(baseAng) * j;
+      const y = core.y + Math.sin(baseAng) * maxLen * t + Math.cos(baseAng) * j;
+      if (!started) { ctx.moveTo(x, y); started = true; }
+      else ctx.lineTo(x, y);
+    }
+    if (started) {
+      ctx.strokeStyle = `rgba(245,220,255,${0.85 * alpha})`;
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+    }
+  }
+
+  // コア
+  const pulse = 1 + Math.sin(time * 3.0) * 0.1;
+  const cr = 13 * pulse;
+  const cg = ctx.createRadialGradient(core.x, core.y, 1, core.x, core.y, cr * 4);
+  cg.addColorStop(0, 'rgba(255,250,255,1)');
+  cg.addColorStop(0.15, 'rgba(235,160,255,0.9)');
+  cg.addColorStop(0.35, 'rgba(150,60,230,0.45)');
+  cg.addColorStop(1, 'rgba(30,5,60,0)');
+  ctx.fillStyle = cg;
+  ctx.beginPath();
+  ctx.arc(core.x, core.y, cr * 4, 0, Math.PI * 2);
+  ctx.fill();
+  const cf = ctx.createRadialGradient(core.x - 2, core.y - 2, 1, core.x, core.y, cr);
+  cf.addColorStop(0, '#ffffff');
+  cf.addColorStop(0.3, '#f0c0ff');
+  cf.addColorStop(0.7, '#a048e0');
+  cf.addColorStop(1, '#401080');
+  ctx.fillStyle = cf;
+  ctx.beginPath();
+  ctx.arc(core.x, core.y, cr, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawMysteryRings(time) {
+  // 細い楕円多層（見える濃さに）
+  const layers = 22;
+  for (let i = 0; i < layers; i++) {
+    const t = i / layers;
+    const baseR = core.r * (0.6 + t * 1.45);
+    const rot0 = i * 0.41 + time * (0.012 + (i % 5) * 0.006) * (i % 2 === 0 ? 1 : -1);
+    const rx = 1.0 + Math.sin(i * 1.7) * 0.16;
+    const ry = 0.58 + Math.cos(i * 1.3) * 0.16;
+    const alpha = 0.1 + (1 - t) * 0.16 + (i % 3) * 0.025;
+    const lw = 0.7 + (i % 4) * 0.4 + (1 - t) * 0.35;
+
+    ctx.save();
+    ctx.translate(core.x, core.y);
+    ctx.rotate(rot0);
+    ctx.scale(rx, ry);
+    const gap = 0.45 + (i % 5) * 0.18;
+    const a0 = time * 0.15 + i * 0.45;
+    ctx.beginPath();
+    ctx.arc(0, 0, baseR, a0, a0 + Math.PI * 2 - gap);
+    ctx.strokeStyle = `rgba(155,90,235,${alpha})`;
+    ctx.lineWidth = lw;
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// ========== ③ うねうね惑星群 ==========
+const SWARM_CHAINS = 7;
+const swarm = [];
+
+function makeRockPoly(r, verts, seed) {
+  const pts = [];
+  for (let i = 0; i < verts; i++) {
+    const a = (i / verts) * Math.PI * 2 + seed * 0.12;
+    const wobble = 0.72 + Math.abs(Math.sin(seed * 2.5 + i * 1.8)) * 0.26;
+    pts.push({ x: Math.cos(a) * r * wobble, y: Math.sin(a) * r * wobble });
+  }
+  return pts;
+}
+
+function buildSwarm() {
+  swarm.length = 0;
+  for (let c = 0; c < SWARM_CHAINS; c++) {
+    const baseAng = (c / SWARM_CHAINS) * Math.PI * 2 + 0.2;
+    const nodes = [];
+    const nCount = 4 + (c % 3);
+    for (let n = 0; n < nCount; n++) {
+      const size = 5.5 + Math.random() * 7;
+      nodes.push({
+        baseAng,
+        dist: core.r + 40 + n * 26 + (c % 2) * 10,
+        phase: Math.random() * Math.PI * 2,
+        size,
+        spin: (Math.random() - 0.5) * 1.2,
+        poly: makeRockPoly(size, 6 + (c + n) % 2, c * 1.5 + n * 2.1),
+        swayAmp: 0.18 + Math.random() * 0.12,
+        distAmp: 5 + Math.random() * 6,
+        swaySpeed: 1.1 + Math.random() * 0.7,
+      });
+    }
+    const energies = (c % 2 === 0)
+      ? [
+          { t: Math.random() * 0.4, speed: 0.2 + Math.random() * 0.1, dir: 1 },
+          { t: 0.5 + Math.random() * 0.3, speed: 0.18 + Math.random() * 0.1, dir: -1 },
+        ]
+      : [{ t: Math.random(), speed: 0.22 + Math.random() * 0.12, dir: Math.random() < 0.5 ? 1 : -1 }];
+    swarm.push({ nodes, energies });
+  }
+}
+buildSwarm();
+
+function swarmNodePos(node, t) {
+  const sway = Math.sin(t * node.swaySpeed + node.phase) * node.swayAmp;
+  const ang = node.baseAng + sway;
+  const dist = node.dist + Math.sin(t * node.swaySpeed * 0.9 + node.phase * 2) * node.distAmp;
+  return {
+    x: core.x + Math.cos(ang) * dist,
+    y: core.y + Math.sin(ang) * dist * 0.84,
+  };
+}
+
+function drawSwarm(time) {
+  for (const ch of swarm) {
+    for (const e of ch.energies) {
+      e.t += e.speed * e.dir * 0.016;
+      if (e.t > 1) { e.t = 1; e.dir = -1; }
+      if (e.t < 0) { e.t = 0; e.dir = 1; }
+    }
+    ctx.strokeStyle = 'rgba(55,40,80,0.65)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < ch.nodes.length; i++) {
+      const p = swarmNodePos(ch.nodes[i], time);
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    }
+    ctx.stroke();
+    for (const node of ch.nodes) {
+      const p = swarmNodePos(node, time);
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(time * node.spin);
+      ctx.beginPath();
+      ctx.moveTo(node.poly[0].x, node.poly[0].y);
+      for (let i = 1; i < node.poly.length; i++) ctx.lineTo(node.poly[i].x, node.poly[i].y);
+      ctx.closePath();
+      const g = ctx.createRadialGradient(-node.size * 0.3, -node.size * 0.3, 1, 0, 0, node.size);
+      g.addColorStop(0, '#6a5040');
+      g.addColorStop(0.5, '#3a2a20');
+      g.addColorStop(1, '#14100c');
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.strokeStyle = '#0c0a08';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+      const glow = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(time * 2.2 + node.phase));
+      ctx.fillStyle = `rgba(210,140,255,${0.3 + glow * 0.5})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    for (const e of ch.energies) {
+      const seg = e.t * (ch.nodes.length - 1);
+      const i0 = Math.floor(seg);
+      const i1 = Math.min(i0 + 1, ch.nodes.length - 1);
+      const f = seg - i0;
+      const p0 = swarmNodePos(ch.nodes[i0], time);
+      const p1 = swarmNodePos(ch.nodes[i1], time);
+      const ex = p0.x + (p1.x - p0.x) * f;
+      const ey = p0.y + (p1.y - p0.y) * f;
+      ctx.shadowColor = '#c060ff';
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = '#e090ff';
+      ctx.beginPath();
+      ctx.arc(ex, ey, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(ex, ey, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawStars(time) {
+  for (const s of stars) {
+    const tw = 0.5 + 0.5 * Math.sin(time * 2.2 + s.tw);
+    ctx.globalAlpha = s.a * tw;
+    ctx.fillStyle = '#e8e0ff';
+    ctx.fillRect(s.x, s.y, s.s, s.s);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawEarth() {
+  const ex = 42, ey = H - 42, er = 50;
+  const ag = ctx.createRadialGradient(ex, ey, er * 0.5, ex, ey, er * 1.4);
+  ag.addColorStop(0, 'rgba(80,160,255,0)');
+  ag.addColorStop(0.5, 'rgba(50,130,255,0.25)');
+  ag.addColorStop(1, 'rgba(20,70,180,0)');
+  ctx.fillStyle = ag;
+  ctx.beginPath();
+  ctx.arc(ex, ey, er * 1.4, 0, Math.PI * 2);
+  ctx.fill();
+  const eg = ctx.createRadialGradient(ex - 12, ey - 14, 4, ex, ey, er);
+  eg.addColorStop(0, '#5aacd8');
+  eg.addColorStop(0.4, '#2a6a9a');
+  eg.addColorStop(1, '#0a2038');
+  ctx.fillStyle = eg;
+  ctx.beginPath();
+  ctx.arc(ex, ey, er, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(55,115,45,0.95)';
+  ctx.beginPath();
+  ctx.ellipse(ex + 8, ey - 6, 18, 12, 0.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(ex - 10, ey + 12, 12, 8, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(150,210,255,0.6)';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(ex, ey, er - 1, -1.3, 0.95);
+  ctx.stroke();
+}
+
+const player = { x: W * 0.5, y: H * 0.78, ringR: 48 };
+const sats = Array.from({ length: 4 }, (_, i) => ({
+  ang: (i / 4) * Math.PI * 2 + Math.PI / 4,
+  dist: 48,
+}));
+
+function drawSat(sx, sy, ang) {
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.rotate(ang + Math.PI / 2);
+  ctx.fillStyle = '#2a3548';
+  ctx.fillRect(-7, -5, 14, 10);
+  ctx.fillStyle = '#3080c0';
+  ctx.fillRect(-16, -3, 8, 6);
+  ctx.fillRect(8, -3, 8, 6);
+  ctx.fillStyle = '#60b0e8';
+  ctx.fillRect(-15, -2, 6, 4);
+  ctx.fillRect(9, -2, 6, 4);
+  ctx.fillStyle = '#70e0ff';
+  ctx.beginPath();
+  ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawPlayer(time) {
+  const { x, y, ringR } = player;
+  const rp = 1 + Math.sin(time * 2.8) * 0.03;
+  ctx.strokeStyle = 'rgba(80,180,255,0.85)';
+  ctx.lineWidth = 2.2;
+  ctx.shadowColor = '#40a0ff';
+  ctx.shadowBlur = 12;
+  ctx.beginPath();
+  ctx.arc(x, y, ringR * rp, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2 + time * 0.8;
+    ctx.fillStyle = i % 3 === 0 ? '#fff' : '#80d0ff';
+    ctx.beginPath();
+    ctx.arc(x + Math.cos(a) * ringR * rp, y + Math.sin(a) * ringR * rp, i % 3 === 0 ? 2.2 : 1.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  for (const s of sats) {
+    s.ang += 0.012;
+    drawSat(x + Math.cos(s.ang) * s.dist, y + Math.sin(s.ang) * s.dist, s.ang);
+  }
+  if (shipImg.complete && shipImg.naturalWidth > 0) {
+    ctx.drawImage(shipImg, x - 22, y - 22, 44, 48);
+  } else {
+    ctx.fillStyle = '#c0d0e8';
+    ctx.beginPath();
+    ctx.moveTo(x, y - 14);
+    ctx.lineTo(x - 12, y + 10);
+    ctx.lineTo(x + 12, y + 10);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+function drawLabels() {
+  ctx.fillStyle = 'rgba(200,180,255,0.5)';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('CORE = weak point', core.x, core.y - core.r - 16);
+  ctx.fillText('UNIT X + escort', player.x, player.y + 62);
+}
+
+let t0 = performance.now();
+
+function draw() {
+  const time = (performance.now() - t0) / 1000;
+  ctx.fillStyle = '#050510';
+  ctx.fillRect(0, 0, W, H);
+  drawStars(time);
+  drawEarth();
+  drawMysteryRings(time);
+  drawSwarm(time);
+  drawCoreVoid(time);
+  drawPlayer(time);
+  drawLabels();
+  requestAnimationFrame(draw);
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'r' || e.key === 'R') {
+    t0 = performance.now();
+    buildSwarm();
+  }
+});
+
+draw();
+</script>
+</body>
+</html>

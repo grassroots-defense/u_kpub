@@ -1,6 +1,4 @@
-# Grassroots Defense ver.5.0
-
-最終調整前の仮UP。宇宙編VOIDボス追加済み。説明書き・バランスはこれから詰める。
+# Grassroots Defense ver.4.5 · 2.5D
 
 スペースインベーダー風 1画面シューティング。
 
