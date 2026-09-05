@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Grassroots Defense ver.5.0 · 2.5D — 草の根防衛</title>
+  <title>Grassroots Defense ver.5.1 · 2.5D — 草の根防衛</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -159,6 +159,7 @@
       flex: 0 0 auto;
     }
     .end-frame {
+      position: relative;
       flex: 1 1 auto;
       min-height: 0;
       width: 100%;
@@ -171,6 +172,23 @@
       overflow: hidden;
       max-height: calc(100% - 200px);
       min-height: 220px;
+    }
+    .result-score-overlay {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      z-index: 3;
+      margin: 0;
+      padding: 5px 12px;
+      font-weight: 800;
+      font-size: 0.92rem;
+      letter-spacing: 0.06em;
+      color: #e8f8b0;
+      text-shadow: 0 1px 3px #000, 0 0 8px rgba(0,0,0,0.85);
+      background: rgba(8, 16, 10, 0.7);
+      border: 1px solid rgba(180, 220, 120, 0.4);
+      border-radius: 4px;
+      pointer-events: none;
     }
     .end-frame.fail {
       border-color: #8a5040;
@@ -291,6 +309,7 @@
       background: rgba(4, 6, 12, 0.96);
     }
     #space-result .space-result-panel {
+      position: relative;
       width: 100%;
       height: 100%;
       max-width: 100%;
@@ -300,6 +319,15 @@
       justify-content: center;
       gap: 12px;
       min-height: 0;
+    }
+    .space-result-art {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     #space-result-img {
       max-width: 100%;
@@ -1192,7 +1220,7 @@
   </style>
 </head>
 <body>
-  <h1>Grassroots Defense <span style="font-size:0.75em;opacity:.7">ver.5.0 · 2.5D</span></h1>
+  <h1>Grassroots Defense <span style="font-size:0.75em;opacity:.7">ver.5.1 · 2.5D</span></h1>
   <p class="sub">草の根の知恵で、環境破壊を跳ね返す — 奥行きのある大地</p>
 
   <div id="wrap">
@@ -1260,7 +1288,7 @@
     <div id="title" class="ui hidden">
       <div class="panel">
         <h2>草の根防衛ユニット X</h2>
-        <p style="font-size:0.78rem;color:#8aaa78;margin:-4px 0 8px;">ver.5.0 · 2.5D</p>
+        <p style="font-size:0.78rem;color:#8aaa78;margin:-4px 0 8px;">ver.5.1 · 2.5D</p>
         <p>
           浮遊メカで汚染を撃ち落とし、<br />
           種と知恵で世界を緑に変えよう。
@@ -1296,6 +1324,7 @@
         <h2 id="end-title">防衛成功</h2>
         <div class="end-frame" id="end-frame">
           <img id="end-poster" alt="Ending" />
+          <p id="end-score-overlay" class="result-score-overlay">SCORE 0</p>
         </div>
         <p id="end-stats"></p>
         <p class="end-msg" id="end-msg"></p>
@@ -1333,7 +1362,10 @@
 
     <div id="space-result" class="ui hidden">
       <div class="space-result-panel">
-        <img id="space-result-img" src="lastclear.png" alt="SPACE RESULT" />
+        <div class="space-result-art">
+          <img id="space-result-img" src="lastclear.png" alt="SPACE RESULT" />
+          <p id="space-result-score" class="result-score-overlay">SCORE 0</p>
+        </div>
         <button id="space-result-btn" type="button">END</button>
         <p id="space-result-hint"><kbd>Enter</kbd> でタイトルへ</p>
       </div>
@@ -1343,6 +1375,7 @@
       <div class="ground-ending-panel">
         <div class="ground-ending-art">
           <img id="ground-ending-img" src="life_tower_ending.png" alt="LIFE TOWER" />
+          <p id="ground-ending-score" class="result-score-overlay">SCORE 0</p>
         </div>
         <button id="ground-ending-btn" type="button">
           <span class="ge-en">END</span>
@@ -1399,7 +1432,7 @@
     </div>
   </div>
 
-  <p class="foot">スペースインベーダー風 · ver.5.0 · 2.5D · ユニットX · WAVE1〜8 · Pでポーズ</p>
+  <p class="foot">スペースインベーダー風 · ver.5.1 · 2.5D · ユニットX · WAVE1〜8 · Pでポーズ</p>
 
   <script>
 (() => {
@@ -1583,6 +1616,8 @@
     targetCy: 0.26,
     cx: 0.5,             // コアX比
     targetCx: 0.5,
+    holdCx: 0.5,
+    holdCy: 0.26,
     moveT: 0,            // 移動フェーズ用タイマー
     chargeT: 0,          // 突進中カウント（>0で突進）
     chargeCd: 180,       // 次突進までのクールダウン
@@ -1596,17 +1631,39 @@
     escorts: [],         // {x,y,tx,ty,arrived}
     ringAlpha: 0,
     radioT: 0,           // 電波信号演出タイマー
+    radioHealDone: false,
     rage: 0,             // クラック移行後の赤化（0〜1）
+    rageWarnT: 0,        // 切替爆発後、赤クラック開始までの残フレーム
+    rageArmed: false,    // 切替演出後にクラック開始
+    rageBurstDone: false, // モード切替用の小爆発は1回だけ
+    rageBlinkStarted: false,
+    rageCoreGrown: false, // 赤化切替時のコア+10%
+    boomHold: 0,
+    clearFade: 0,
+    form: "front", // front | shift | back — 前半VOID / 交代 / 後半VOID
+    warpStage: null, // freeze | coarsen | appear | restore
+    warpHold: 0,
+    warpGrain: 0,
+    warpCd: 0,
   };
+  let voidShiftTimer = 0;
+  let voidShiftLock = false;
   let spaceAscentT = 0; // >0 の間は上昇演出（操作ロック）
   /** 地球からのお助けアイテム {x,y,vy,kind,bob,got} kind: repair|shield|rapid */
   let voidCracks = []; // VOID半減後のクラック弾
   let voidCrackCd = 0;
+  let spaceBeams = []; // スターリンク後のグラディウス型レーザー
   let voidShrapnel = []; // VOID撃破爆発の破片弾
+  let voidRageGas = []; // 赤化切替の爆発ガス体（攻撃判定）
   let voidGravityT = 0;  // 重力攻撃中フレーム（>0 で最前線縛り）
   let voidGravityCd = 0; // 重力攻撃クールダウン
   let spaceAssists = [];
   let spaceAssistCd = 0;
+  let spaceRadioOffered = false;
+  let spaceRadioRolled = false;
+  let spaceNoHit = true;       // 宇宙編ノーダメージ
+  let spaceGravitySafe = 0;    // 重力中の連続無被弾フレーム
+  let spaceVoidKillScored = false;
   function enterSpaceStage() {
     spaceMode = true;
     mode = "space";
@@ -1619,8 +1676,8 @@
     player.shield = 0;
     player.rapid = false;
     player.triple = false;
-    player.unitHp = 100;
-    player.unitHpMax = 100;
+    player.unitHp = 50;
+    player.unitHpMax = 50;
     invuln = 120;
     bullets = [];
     enemyBullets = [];
@@ -1629,9 +1686,12 @@
     spaceAscentT = 90; // 約1.5秒上昇
     spaceAssists = [];
     spaceAssistCd = 200;
+    spaceRadioOffered = false;
+    spaceRadioRolled = false;
     voidOrbitBodies = null;
     voidCracks = [];
     voidCrackCd = 0;
+    spaceBeams = [];
     voidShrapnel = [];
     voidGravityT = 0;
     voidGravityCd = 0;
@@ -1650,6 +1710,8 @@
     voidReveal.targetCy = 0.26;
     voidReveal.cx = 0.5;
     voidReveal.targetCx = 0.5;
+    voidReveal.holdCx = 0.5;
+    voidReveal.holdCy = 0.26;
     voidReveal.moveT = 0;
     voidReveal.chargeT = 0;
     voidReveal.chargeCd = 180;
@@ -1662,7 +1724,31 @@
     voidReveal.escorts = [];
     voidReveal.ringAlpha = 0;
     voidReveal.radioT = 0;
+    voidReveal.radioHealDone = false;
     voidReveal.rage = 0;
+    voidReveal.rageWarnT = 0;
+    voidReveal.rageArmed = false;
+    voidReveal.rageBurstDone = false;
+    voidReveal.rageBlinkStarted = false;
+    voidReveal.rageCoreGrown = false;
+    voidReveal.boomHold = 0;
+    voidReveal.clearFade = 0;
+    voidReveal.form = "front";
+    voidReveal.shiftBlinkDone = false;
+    voidReveal.backCrackWait = 0;
+    voidReveal.warpStage = null;
+    voidReveal.warpHold = 0;
+    voidReveal.warpGrain = 0;
+    voidReveal.warpCd = 90;
+    voidReveal.coreTouchT = 0;
+    voidShiftTimer = 0;
+    voidShiftLock = false;
+    try { stopVoidShiftThunder(); } catch (_) {}
+    voidRageGas = [];
+    voidDroneFadeT = 0;
+    spaceNoHit = true;
+    spaceGravitySafe = 0;
+    spaceVoidKillScored = false;
     try { dockShuuu(1.5, 0.09); } catch (_) {}
   }
   function leaveSpaceStage() {
@@ -1845,6 +1931,11 @@
   let wisdom = 0;
   /** 都市化ピーク知恵（一度上がったらラン中は戻さない） */
   let urbanPeakWisdom = 0;
+  let urbanDisasterDrop = 0;
+  let urbanDropThisHit = false;
+  let playerShotRank = 1;
+  let playerShotUrbanLatch = -1;
+
   let wave = 1;
   let dir = 1;
   let fireTimer = 0;
@@ -2152,6 +2243,43 @@
   }
 
   function sfxShoot() { beep(520, 0.06, "square", 0.05, 0.5); }
+  function sfxLaserBeam() {
+    if (mode !== "space") return;
+    const vp = voidReveal && voidReveal.phase;
+    if (vp === "boom" || mode === "space-clear" || mode === "space-over") return;
+    if (!actx) {
+      try { ensureAudio(); } catch (_) {}
+    }
+    if (!actx) return;
+    try {
+      const c = actx;
+      const t0 = c.currentTime;
+      const dur = 0.55;
+      const o1 = c.createOscillator();
+      const o2 = c.createOscillator();
+      const g = c.createGain();
+      const f = c.createBiquadFilter();
+      o1.type = "sawtooth";
+      o2.type = "square";
+      o1.frequency.value = 210;
+      o2.frequency.value = 214;
+      f.type = "bandpass";
+      f.frequency.value = 280;
+      f.Q.value = 2.4;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(0.028, t0 + 0.03);
+      g.gain.setValueAtTime(0.024, t0 + 0.22);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o1.connect(f);
+      o2.connect(f);
+      f.connect(g);
+      g.connect(c.destination);
+      o1.start(t0);
+      o2.start(t0);
+      o1.stop(t0 + dur + 0.02);
+      o2.stop(t0 + dur + 0.02);
+    } catch (_) {}
+  }
   function sfxKill() {
     beep(180, 0.12, "sawtooth", 0.07, 0.4);
     setTimeout(() => beep(120, 0.1, "triangle", 0.05), 40);
@@ -2402,6 +2530,49 @@
     return 250 + 280 + 40;
   }
 
+  /** 地上8面クリア：防衛成功（RECEIVE ORDERS）切替の短いポロロン。1回・短尺 */
+  function sfxClearPororon() {
+    const fire = () => {
+      ensureAudio();
+      if (!actx) return;
+      try {
+        const t0 = actx.currentTime;
+        const notes = [
+          { f: 523.25, t: 0, dur: 0.11, vol: 0.07 },
+          { f: 659.25, t: 0.07, dur: 0.12, vol: 0.055 },
+          { f: 783.99, t: 0.15, dur: 0.16, vol: 0.045 },
+        ];
+        for (let i = 0; i < notes.length; i++) {
+          const n = notes[i];
+          const o = actx.createOscillator();
+          const g = actx.createGain();
+          o.type = "triangle";
+          o.frequency.setValueAtTime(n.f, t0 + n.t);
+          g.gain.setValueAtTime(0.0001, t0 + n.t);
+          g.gain.linearRampToValueAtTime(n.vol, t0 + n.t + 0.012);
+          g.gain.exponentialRampToValueAtTime(0.001, t0 + n.t + n.dur);
+          o.connect(g);
+          g.connect(actx.destination);
+          o.start(t0 + n.t);
+          o.stop(t0 + n.t + n.dur + 0.02);
+        }
+      } catch (_) {}
+    };
+    ensureAudio();
+    if (!actx) return;
+    if (actx.state === "running") {
+      fire();
+      return;
+    }
+    try {
+      const p = actx.resume();
+      if (p && typeof p.then === "function") p.then(fire).catch(fire);
+      else fire();
+    } catch (_) {
+      fire();
+    }
+  }
+
   /** 各画面 ENTER / NEXT の短い決定SE */
   function sfxConfirm() {
     beep(720, 0.045, "square", 0.055);
@@ -2452,6 +2623,9 @@
     const p = voidReveal && voidReveal.phase;
     return p === "present" || p === "aggro" || p === "linked";
   }
+  let voidDroneFadeT = 0;
+  const VOID_DRONE_LO = 0.038;
+  const VOID_DRONE_HI = 0.09;
   function startVoidDrone() {
     if (!voidAudioAllowed()) return;
     if (!actx || voidDroneNodes) return;
@@ -2480,12 +2654,35 @@
       f.type = "lowpass";
       f.frequency.value = 220;
       f.Q.value = 2.2;
-      g.gain.setValueAtTime(0.001, t0);
-      g.gain.linearRampToValueAtTime(0.09, t0 + 1.2);
+      g.gain.setValueAtTime(VOID_DRONE_LO, t0);
       o1.connect(f); o2.connect(f); o3.connect(f);
       f.connect(g); g.connect(c.destination);
       o1.start(t0); o2.start(t0); o3.start(t0); lfo.start(t0);
       voidDroneNodes = { o1, o2, o3, g, f, lfo, lfoG };
+    } catch (_) {}
+  }
+  function tickVoidDroneEnvelope() {
+    if (!voidAudioAllowed()) return;
+    if (!actx) return;
+    if (!voidDroneNodes) {
+      startVoidDrone();
+      if (!voidDroneNodes) return;
+    }
+    const g = voidDroneNodes.g;
+    if (!g || !g.gain) return;
+    const now = actx.currentTime;
+    let vol;
+    if (voidGravityT > 0) {
+      vol = VOID_DRONE_HI * 1.1;
+    } else {
+      voidDroneFadeT++;
+      const cycle = 180;
+      const tri = 1 - Math.abs((voidDroneFadeT % (cycle * 2)) / cycle - 1);
+      vol = VOID_DRONE_LO + (VOID_DRONE_HI - VOID_DRONE_LO) * tri;
+    }
+    try {
+      g.gain.cancelScheduledValues(now);
+      g.gain.setValueAtTime(vol, now);
     } catch (_) {}
   }
   function stopVoidDrone() {
@@ -2507,6 +2704,8 @@
   }
   function stopAllVoidAudio() {
     stopVoidDrone();
+    stopVoidGravityHum();
+    stopVoidShiftThunder();
     for (let i = 0; i < voidOneShotNodes.length; i++) {
       const n = voidOneShotNodes[i];
       try {
@@ -2536,6 +2735,90 @@
       oFlash.connect(gFlash); gFlash.connect(c.destination);
       oFlash.start(t0); oFlash.stop(t0 + 0.55);
     } catch (_) {}
+  }
+
+  /** 紫赤点滅中：重低音がウォーン、ウォーンと波打つ */
+  let voidShiftThunderNodes = null;
+  function startVoidShiftThunder() {
+    if (!actx) {
+      try { ensureAudio(); } catch (_) {}
+    }
+    if (!actx) return;
+    stopVoidShiftThunder();
+    try {
+      const c = actx;
+      const t0 = c.currentTime;
+      const f = c.createBiquadFilter();
+      f.type = "lowpass";
+      f.frequency.value = 220;
+      f.Q.value = 2.6;
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(0.14, t0 + 0.08);
+      const volLfo = c.createOscillator();
+      const volG = c.createGain();
+      volLfo.type = "sine";
+      volLfo.frequency.value = 1.15;
+      volG.gain.value = 0.12;
+      volLfo.connect(volG);
+      volG.connect(g.gain);
+      const o1 = c.createOscillator();
+      const o2 = c.createOscillator();
+      const o3 = c.createOscillator();
+      o1.type = "sawtooth";
+      o2.type = "sine";
+      o3.type = "triangle";
+      o1.frequency.value = 42;
+      o2.frequency.value = 63;
+      o3.frequency.value = 28;
+      const pitLfo = c.createOscillator();
+      const pitG = c.createGain();
+      pitLfo.type = "sine";
+      pitLfo.frequency.value = 1.15;
+      pitG.gain.value = 14;
+      pitLfo.connect(pitG);
+      pitG.connect(o1.frequency);
+      pitG.connect(o2.frequency);
+      const og = c.createGain();
+      og.gain.value = 1;
+      o1.connect(f);
+      o2.connect(f);
+      o3.connect(f);
+      f.connect(og);
+      og.connect(g);
+      g.connect(c.destination);
+      o1.start(t0);
+      o2.start(t0);
+      o3.start(t0);
+      volLfo.start(t0);
+      pitLfo.start(t0);
+      voidShiftThunderNodes = { n: o1, o: o2, lfo: volLfo, o3, pitLfo, g, og };
+    } catch (_) {}
+  }
+  function stopVoidShiftThunder() {
+    if (!voidShiftThunderNodes) return;
+    try {
+      const { n, o, lfo, g } = voidShiftThunderNodes;
+      if (actx && g) {
+        const t0 = actx.currentTime;
+        g.gain.cancelScheduledValues(t0);
+        g.gain.setValueAtTime(Math.max(0.0001, g.gain.value || 0.01), t0);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.08);
+      }
+      const nodes = voidShiftThunderNodes;
+      voidShiftThunderNodes = null;
+      setTimeout(() => {
+        try {
+          nodes.n.stop();
+          nodes.o.stop();
+          nodes.lfo.stop();
+          if (nodes.o3) nodes.o3.stop();
+          if (nodes.pitLfo) nodes.pitLfo.stop();
+        } catch (_) {}
+      }, 120);
+    } catch (_) {
+      voidShiftThunderNodes = null;
+    }
   }
 
   /** VOID重低音の合間に入る稲妻（短い） */
@@ -2616,6 +2899,41 @@
     } catch (_) {}
   }
 
+  /** 赤クラック切替：本体の小さい爆発（撃破用ではない） */
+  function sfxVoidRageBurst() {
+    if (!voidAudioAllowed() || !actx || !audioOk) return;
+    try {
+      const c = actx;
+      const t0 = c.currentTime;
+      const o = c.createOscillator();
+      const o2 = c.createOscillator();
+      const g = c.createGain();
+      const f = c.createBiquadFilter();
+      o.type = "sawtooth";
+      o2.type = "sine";
+      o.frequency.setValueAtTime(110, t0);
+      o.frequency.exponentialRampToValueAtTime(42, t0 + 0.18);
+      o2.frequency.setValueAtTime(55, t0);
+      o2.frequency.exponentialRampToValueAtTime(28, t0 + 0.2);
+      f.type = "lowpass";
+      f.frequency.setValueAtTime(520, t0);
+      f.frequency.exponentialRampToValueAtTime(90, t0 + 0.22);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(0.18, t0 + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.26);
+      o.connect(f);
+      o2.connect(f);
+      f.connect(g);
+      g.connect(c.destination);
+      o.start(t0);
+      o2.start(t0);
+      o.stop(t0 + 0.3);
+      o2.stop(t0 + 0.3);
+      voidOneShotNodes.push({ o, g });
+      voidOneShotNodes.push({ o: o2, g });
+    } catch (_) {}
+  }
+
   /** クラック放出：ダダン（怒り） */
   function sfxVoidCrackAnger() {
     if (!voidAudioAllowed() || !actx || !audioOk) return;
@@ -2649,6 +2967,74 @@
       hit(0, 92, 0.16);
       hit(0.11, 58, 0.2);
     } catch (_) {}
+  }
+
+  /** 重力攻撃中の「ぶぉーん、ぶぉーん」（持続。終了時フェード） */
+  let voidGravityHumNodes = null;
+  function startVoidGravityHum() {
+    if (!voidAudioAllowed() || !actx || !audioOk) return;
+    if (voidGravityHumNodes) return;
+    try {
+      const c = actx;
+      const t0 = c.currentTime;
+      const o1 = c.createOscillator();
+      const o2 = c.createOscillator();
+      const o3 = c.createOscillator();
+      const g = c.createGain();
+      const f = c.createBiquadFilter();
+      o1.type = "sawtooth";
+      o2.type = "sine";
+      o3.type = "triangle";
+      o1.frequency.value = 36;
+      o2.frequency.value = 48;
+      o3.frequency.value = 24;
+      f.type = "lowpass";
+      f.frequency.value = 110;
+      f.Q.value = 1.8;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(0.12, t0 + 0.08);
+      const lfo = c.createOscillator();
+      const lfoG = c.createGain();
+      lfo.type = "sine";
+      lfo.frequency.value = 1.2;
+      lfoG.gain.value = 0.09;
+      lfo.connect(lfoG);
+      lfoG.connect(g.gain);
+      o1.connect(f);
+      o2.connect(f);
+      o3.connect(f);
+      f.connect(g);
+      g.connect(c.destination);
+      o1.start(t0);
+      o2.start(t0);
+      o3.start(t0);
+      lfo.start(t0);
+      voidGravityHumNodes = { o1, o2, o3, lfo, g };
+    } catch (_) {}
+  }
+  function stopVoidGravityHum() {
+    if (!voidGravityHumNodes) return;
+    try {
+      const { o1, o2, o3, lfo, g } = voidGravityHumNodes;
+      if (actx && g) {
+        const t0 = actx.currentTime;
+        g.gain.cancelScheduledValues(t0);
+        g.gain.setValueAtTime(Math.max(0.0001, g.gain.value), t0);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
+      }
+      const nodes = voidGravityHumNodes;
+      voidGravityHumNodes = null;
+      setTimeout(() => {
+        try {
+          nodes.o1.stop();
+          nodes.o2.stop();
+          if (nodes.o3) nodes.o3.stop();
+          if (nodes.lfo) nodes.lfo.stop();
+        } catch (_) {}
+      }, 260);
+    } catch (_) {
+      voidGravityHumNodes = null;
+    }
   }
 
   /** VOID重力攻撃：通常VOIDよりさらに低い超重低音（物理弾なし・音で表現） */
@@ -2775,31 +3161,104 @@
       clearTimeout(waitBgmTimer);
       waitBgmTimer = null;
     }
+    stopHowtoOverture();
   }
+  let howtoOvertureNodes = null;
+  function stopHowtoOverture() {
+    if (!howtoOvertureNodes) return;
+    try {
+      const nodes = howtoOvertureNodes;
+      howtoOvertureNodes = null;
+      if (actx && nodes.g) {
+        const t0 = actx.currentTime;
+        nodes.g.gain.cancelScheduledValues(t0);
+        nodes.g.gain.setValueAtTime(Math.max(0.0001, nodes.g.gain.value || 0.02), t0);
+        nodes.g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.45);
+      }
+      setTimeout(() => {
+        try {
+          if (nodes.oscs) nodes.oscs.forEach((o) => o.stop());
+          if (nodes.lfos) nodes.lfos.forEach((o) => o.stop());
+          if (nodes.noise) nodes.noise.stop();
+        } catch (_) {}
+      }, 520);
+    } catch (_) {
+      howtoOvertureNodes = null;
+    }
+  }
+  function startHowtoOverture() {
+    stopWaitBgm();
+    stopOpeningBgm();
+    stopHowtoOverture();
+    ensureAudio();
+    if (actx && actx.state === "suspended") {
+      try { actx.resume(); } catch (_) {}
+    }
+    if (!actx) return;
+    try {
+      const c = actx;
+      const t0 = c.currentTime;
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(0.32, t0 + 2.4);
+      const f = c.createBiquadFilter();
+      f.type = "lowpass";
+      f.frequency.setValueAtTime(280, t0);
+      f.Q.value = 0.7;
+      const lfoF = c.createOscillator();
+      const lfoFg = c.createGain();
+      lfoF.type = "sine";
+      lfoF.frequency.value = 0.07;
+      lfoFg.gain.value = 90;
+      lfoF.connect(lfoFg);
+      lfoFg.connect(f.frequency);
+      const freqs = [49, 73.4, 98, 146.8, 196];
+      const oscs = [];
+      freqs.forEach((hz, i) => {
+        const o = c.createOscillator();
+        o.type = i % 2 === 0 ? "sine" : "triangle";
+        o.frequency.value = hz;
+        const og = c.createGain();
+        og.gain.value = i === 0 ? 0.45 : 0.18 - i * 0.02;
+        o.connect(og);
+        og.connect(f);
+        o.start(t0);
+        oscs.push(o);
+      });
+      const nsrc = c.createBufferSource();
+      const nlen = Math.floor(c.sampleRate * 2.5);
+      const nbuf = c.createBuffer(1, nlen, c.sampleRate);
+      const nd = nbuf.getChannelData(0);
+      for (let i = 0; i < nlen; i++) nd[i] = (Math.random() * 2 - 1) * 0.35;
+      nsrc.buffer = nbuf;
+      nsrc.loop = true;
+      const nf = c.createBiquadFilter();
+      nf.type = "lowpass";
+      nf.frequency.value = 180;
+      const ng = c.createGain();
+      ng.gain.value = 0.12;
+      nsrc.connect(nf);
+      nf.connect(ng);
+      ng.connect(f);
+      nsrc.start(t0);
+      f.connect(g);
+      g.connect(c.destination);
+      lfoF.start(t0);
+      howtoOvertureNodes = { g, oscs, lfos: [lfoF], noise: nsrc };
+    } catch (_) {}
+  }
+
   function startWaitBgm() {
     stopWaitBgm();
     stopOpeningBgm();
+    stopHowtoOverture();
     waitBgmOn = true;
     ensureAudio();
     if (actx && actx.state === "suspended") actx.resume();
 
     function bar(step) {
-      if (!waitBgmOn || (mode !== "title" && mode !== "howto")) {
+      if (!waitBgmOn || mode !== "title") {
         waitBgmOn = false;
-        return;
-      }
-      if (mode === "howto") {
-        // 説明画面：軽快な木琴風（タッタカでもポロロロンでもない）
-        const s = step % 6;
-        if (s === 0) beep(698, 0.07, "triangle", 0.05);
-        else if (s === 1) beep(880, 0.06, "triangle", 0.042);
-        else if (s === 2) beep(784, 0.08, "triangle", 0.048);
-        else if (s === 3) { /* 間 */ }
-        else if (s === 4) {
-          beep(1046, 0.09, "triangle", 0.045);
-          beep(1568, 0.05, "sine", 0.016);
-        }
-        waitBgmTimer = setTimeout(() => bar(step + 1), s === 5 ? 220 : s === 3 ? 70 : 95);
         return;
       }
       // タイトル：タッ・タ・カ
@@ -2818,10 +3277,150 @@
     bar(0);
   }
   function sfxWin() {
-    [523, 659, 784, 1046].forEach((f, i) => {
-      setTimeout(() => beep(f, 0.18, "sine", 0.07), i * 120);
-    });
+    sfxGroundEnding();
   }
+
+  let endingToneOscs = [];
+  let groundNatureNodes = [];
+  function stopClearEndingSfx() {
+    const oscs = endingToneOscs;
+    endingToneOscs = [];
+    for (let i = 0; i < oscs.length; i++) {
+      try { oscs[i].stop(); } catch (_) {}
+    }
+  }
+  function stopGroundEndingSfx() {
+    const nodes = groundNatureNodes;
+    groundNatureNodes = [];
+    for (let i = 0; i < nodes.length; i++) {
+      try { nodes[i].stop(); } catch (_) {}
+    }
+  }
+  function stopVoidEndingSfx() { stopClearEndingSfx(); }
+
+  function playGroundNatureEnding() {
+    const fire = () => {
+      ensureAudio();
+      if (!actx) return;
+      stopGroundEndingSfx();
+      try {
+        const c = actx;
+        const t0 = c.currentTime;
+        const dur = 6.8;
+        const sr = c.sampleRate;
+        const nlen = Math.max(1, (sr * dur) | 0);
+        const buf = c.createBuffer(1, nlen, sr);
+        const data = buf.getChannelData(0);
+        let brown = 0;
+        for (let i = 0; i < nlen; i++) {
+          brown = (brown + (Math.random() * 2 - 1) * 0.02) * 0.985;
+          const spark = (Math.random() * 2 - 1) * 0.04 * Math.sin(i / sr * 6.2);
+          data[i] = brown * 3.2 + spark;
+        }
+        const src = c.createBufferSource();
+        src.buffer = buf;
+        src.loop = false;
+        const lp = c.createBiquadFilter();
+        lp.type = "lowpass";
+        lp.frequency.setValueAtTime(520, t0);
+        lp.frequency.linearRampToValueAtTime(280, t0 + dur);
+        lp.Q.value = 0.4;
+        const riverG = c.createGain();
+        riverG.gain.setValueAtTime(0.0001, t0);
+        riverG.gain.linearRampToValueAtTime(0.085, t0 + 0.8);
+        riverG.gain.setValueAtTime(0.07, t0 + 3.2);
+        riverG.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+        src.connect(lp);
+        lp.connect(riverG);
+        riverG.connect(c.destination);
+        src.start(t0);
+        src.stop(t0 + dur);
+        groundNatureNodes.push(src);
+
+        const chirpAt = (when, f0, f1) => {
+          const o = c.createOscillator();
+          const g = c.createGain();
+          o.type = "sine";
+          o.frequency.setValueAtTime(f0, when);
+          o.frequency.linearRampToValueAtTime(f1, when + 0.09);
+          o.frequency.linearRampToValueAtTime(f0 * 0.82, when + 0.16);
+          g.gain.setValueAtTime(0.0001, when);
+          g.gain.linearRampToValueAtTime(0.045, when + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.001, when + 0.18);
+          o.connect(g);
+          g.connect(c.destination);
+          o.start(when);
+          o.stop(when + 0.2);
+          groundNatureNodes.push(o);
+        };
+        chirpAt(t0 + 1.05, 2680, 3180);
+        chirpAt(t0 + 1.22, 2400, 2860);
+        chirpAt(t0 + 2.85, 2900, 3400);
+        chirpAt(t0 + 4.35, 2550, 3050);
+        chirpAt(t0 + 4.5, 2200, 2600);
+      } catch (_) {}
+    };
+    ensureAudio();
+    if (!actx) return;
+    if (actx.state === "running") {
+      fire();
+      return;
+    }
+    try {
+      const p = actx.resume();
+      if (p && typeof p.then === "function") p.then(fire).catch(fire);
+      else fire();
+    } catch (_) {
+      fire();
+    }
+  }
+
+  /** ゲーム開始と同じ actx。VOIDクリアは低い余韻。地上は川＋鳥 */
+  function playClearEndingSfx(kind) {
+    if (kind !== "void") {
+      playGroundNatureEnding();
+      return;
+    }
+    const fire = () => {
+      ensureAudio();
+      if (!actx) return;
+      stopClearEndingSfx();
+      try {
+        const t0 = actx.currentTime;
+        const dur = 10.2;
+        const freqs = [98, 130.8, 164.8];
+        const peak = 0.09;
+        for (let i = 0; i < freqs.length; i++) {
+          const o = actx.createOscillator();
+          const g = actx.createGain();
+          o.type = "sine";
+          o.frequency.setValueAtTime(freqs[i], t0);
+          g.gain.setValueAtTime(peak * (i === 0 ? 1 : 0.45), t0);
+          g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+          o.connect(g);
+          g.connect(actx.destination);
+          o.start(t0);
+          o.stop(t0 + dur);
+          endingToneOscs.push(o);
+        }
+      } catch (_) {}
+    };
+    ensureAudio();
+    if (!actx) return;
+    if (actx.state === "running") {
+      fire();
+      return;
+    }
+    try {
+      const p = actx.resume();
+      if (p && typeof p.then === "function") p.then(fire).catch(fire);
+      else fire();
+    } catch (_) {
+      fire();
+    }
+  }
+  function sfxGroundEnding() { playGroundNatureEnding(); }
+  function sfxVoidEnding() { playClearEndingSfx("void"); }
   function sfxLose() {
     [400, 300, 200, 120].forEach((f, i) => {
       setTimeout(() => beep(f, 0.2, "sawtooth", 0.06, 0.7), i * 100);
@@ -3063,10 +3662,20 @@
   /** HUD用段階: 0なし / 1集落 / 2橋ダム / 3塔（進捗の三等分） */
   function urbanStageOf() {
     const p = urbanProgressOf();
-    if (p <= 0) return 0;
-    if (p < 1 / 3) return 1;
-    if (p < 2 / 3) return 2;
-    return 3;
+    let stage = 0;
+    if (p <= 0) stage = 0;
+    else if (p < 1 / 3) stage = 1;
+    else if (p < 2 / 3) stage = 2;
+    else stage = 3;
+    let destroyed = 0;
+    if (_landTowns) {
+      for (let i = 0; i < _landTowns.length; i++) {
+        const site = _landTowns[i];
+        if ((site.icbmDmg | 0) >= 3) destroyed++;
+      }
+    }
+    if (urbanDisasterDrop > 0) stage = Math.max(0, stage - urbanDisasterDrop);
+    return stage;
   }
   /** サイトごとの成長 0..1（unlock 後、約6個でフル） */
   function urbanSiteGrow(unlockAt) {
@@ -3191,7 +3800,39 @@
 
   /** 被弾箇所が 2 以上なら新規のコロニー攻撃は止める */
   function canSpawnColonyAreaAttack() {
-    return countColonyHitLocations() < 2;
+    return countColonyHitLocations() < 4;
+  }
+
+  function countIntactColonies() {
+    ensureLandDecor();
+    if (!_landTowns) return 0;
+    let n = 0;
+    for (let i = 0; i < _landTowns.length; i++) {
+      const site = _landTowns[i];
+      ensureColonyDamageFields(site);
+      if (urbanSiteGrow(site.unlockAt || 0) < 0.999) continue;
+      if (site.blackout) continue;
+      if ((site.icbmDmg | 0) !== 0) continue;
+      n++;
+    }
+    return n;
+  }
+
+  function syncPlayerShotRank() {
+    const n = countIntactColonies();
+    if (n === playerShotUrbanLatch) return;
+    playerShotUrbanLatch = n;
+    playerShotRank = n === 5 ? 2 : 1;
+  }
+
+  /** 完全体コロニーがちょうど5個のときだけW弾。数が変わったときだけ切替 */
+  function colonyBulletII() {
+    return playerShotRank === 2;
+  }
+
+  function hitPlayerShot(b, target) {
+    if (!target) return false;
+    return hitRect(b, target);
   }
 
   function pickRandomCompletedColony() {
@@ -3200,29 +3841,59 @@
     return list[(Math.random() * list.length) | 0];
   }
 
-  /** ICBM 被弾：最悪段階へリセット（完成済みのみ） */
+  function countDestroyedColonies() {
+    ensureLandDecor();
+    if (!_landTowns) return 0;
+    let n = 0;
+    for (let i = 0; i < _landTowns.length; i++) {
+      if ((_landTowns[i].icbmDmg | 0) >= 3) n++;
+    }
+    return n;
+  }
+
+  function noteUrbanDisasterDrop() {
+    if (urbanDropThisHit) return;
+    if (countDestroyedColonies() < 2) return;
+    urbanDropThisHit = true;
+    urbanDisasterDrop = Math.min(3, (urbanDisasterDrop || 0) + 1);
+  }
+
+  /** ICBM：1発1拠点だけ破壊 */
   function applyColonyIcbmHit(ti) {
     ensureLandDecor();
     if (!_landTowns || ti < 0 || ti >= _landTowns.length) return;
     const site = _landTowns[ti];
     ensureColonyDamageFields(site);
     if (!isColonyComplete(site)) return;
+    if ((site.icbmDmg | 0) >= 3) return;
     site.icbmDmg = 3;
     site.smokePhase = Math.random() * Math.PI * 2;
-    showToast("🏙 コロニーに ICBM 着弾！ 火災発生…");
+    noteUrbanDisasterDrop();
+    showToast("🏙 コロニー破壊！");
     invalidateSceneCaches();
+    syncPlayerShotRank();
   }
 
-  /** 落雷被弾：停電。再被弾で停電に戻る（完成済みのみ） */
+  /** 停電：1拠点を1段階だけ落とす */
   function applyColonyLightningHit(ti) {
     ensureLandDecor();
     if (!_landTowns || ti < 0 || ti >= _landTowns.length) return;
     const site = _landTowns[ti];
     ensureColonyDamageFields(site);
     if (!isColonyComplete(site)) return;
+    const before = site.icbmDmg | 0;
+    if (before >= 3) return;
     site.blackout = true;
-    showToast("⚡ コロニー停電！");
+    site.icbmDmg = Math.min(3, before + 1);
+    noteUrbanDisasterDrop();
+    if (site.icbmDmg >= 3) {
+      site.smokePhase = Math.random() * Math.PI * 2;
+      showToast("⚡ 停電 — コロニー破壊");
+    } else {
+      showToast("⚡ コロニー停電！ 被害+" + site.icbmDmg);
+    }
     invalidateSceneCaches();
+    syncPlayerShotRank();
   }
 
   /** 全コロニーが完成しているか（各サイト grow === 1） */
@@ -3273,7 +3944,9 @@
     if (icbmDamaged.length) {
       const ti = icbmDamaged[(Math.random() * icbmDamaged.length) | 0];
       const site = _landTowns[ti];
+      const wasGone = (site.icbmDmg | 0) >= 3;
       site.icbmDmg = Math.max(0, site.icbmDmg - 1);
+      if (wasGone) urbanDisasterDrop = Math.max(0, (urbanDisasterDrop || 0) - 1);
       invalidateSceneCaches();
       if (site.icbmDmg === 2) return "🏙 火災が消え、色が戻り始めた";
       if (site.icbmDmg === 1) return "🏙 土地と建物が明るくなってきた";
@@ -3298,6 +3971,10 @@
     seeds = 0;
     wisdom = 0;
     urbanPeakWisdom = 0;
+    urbanDisasterDrop = 0;
+    urbanDropThisHit = false;
+    playerShotRank = 1;
+    playerShotUrbanLatch = -1;
     wave = 1;
     greenProgress = 0;
     invalidateSceneCaches();
@@ -3519,18 +4196,24 @@
     player.cool = fireCooldown();
     const vy = playerBulletSpeed();
     const dmg = player.atk;
+    const ii = colonyBulletII();
+    const copies = ii ? 2 : 1;
     const midX = player.x + player.w / 2 - 2;
     const leftX = player.x - 1;
     const rightX = player.x + player.w - 3;
     const y0 = player.y - 8;
-
+    function pushShot(x, w) {
+      for (let k = 0; k < copies; k++) {
+        const ox = k === 1 ? 6 : 0;
+        bullets.push({ x: x + ox, y: y0, w, h: 10, vy, vx: 0, dmg, wShot: ii });
+      }
+    }
     if (player.triple) {
-      // 3点射撃: left edge, center, right edge — straight up
-      bullets.push({ x: leftX, y: y0, w: 3, h: 10, vy, vx: 0, dmg });
-      bullets.push({ x: midX, y: y0, w: 4, h: 10, vy, vx: 0, dmg });
-      bullets.push({ x: rightX, y: y0, w: 3, h: 10, vy, vx: 0, dmg });
+      pushShot(leftX, 3);
+      pushShot(midX, 4);
+      pushShot(rightX, 3);
     } else {
-      bullets.push({ x: midX, y: y0, w: 4, h: 10, vy, vx: 0, dmg });
+      pushShot(midX, 4);
     }
     applyShootRecoil();
     sfxShoot();
@@ -3539,6 +4222,10 @@
   function hitRect(a, b) {
     return a.x < b.x + b.w && a.x + a.w > b.x &&
            a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  function isGreenMax() {
+    return greenProgress >= 1;
   }
 
   /** Ground impact: toast only — greening is never reduced until death */
@@ -3599,6 +4286,7 @@
     syncColonySpawnHealth(); // 新規芽生え／完成を健全状態で確定してから回復処理
     // コロニー被害の回復（停電優先 → ICBM 段階回復）
     const healMsg = tryHealColonyDamage();
+    syncPlayerShotRank();
     if (healMsg) showToast(healMsg);
     else showToast("📘 " + WISDOM_LINES[(wisdom - 1) % WISDOM_LINES.length]);
     sfxItem();
@@ -4239,13 +4927,15 @@
     if (wave < 4 || mode !== "play") return;
 
     disasterTimer--;
+    const raining = !!(RainSystem && RainSystem.active);
     if (disasterTimer <= 0) {
       const canColonyAtk =
         getCompletedColonyIndices().length > 0 && canSpawnColonyAreaAttack();
-      // コロニー攻撃は別枠（低確率）。失敗時は従来の謎攻撃テーブルへ
-      const tryColony = canColonyAtk && Math.random() < 0.22;
+      const colonyChance = raining ? 0.22 : 0.14;
+      const tryColony = canColonyAtk && Math.random() < colonyChance;
+      const colonyLightningBias = raining ? 0.55 : 0.50;
 
-      if (tryColony && Math.random() < 0.55) {
+      if (tryColony && Math.random() >= colonyLightningBias) {
         // 小型 ICBM → 奥の完成コロニー
         const pool = getRearCompletedColonyIndices();
         const ti = pool[(Math.random() * pool.length) | 0];
@@ -4319,7 +5009,7 @@
             maxR: 68,
             life: 400,
           });
-        } else if (roll < 0.78) {
+        } else if (roll < (raining ? 0.58 : 0.78)) {
           sfxIcbm();
           showToast("🚀 ICBM 接近！");
           const x = 40 + Math.random() * (W - 80);
@@ -4358,6 +5048,7 @@
       // 攻撃総量 + スーパーハードの謎攻撃増
       disasterTimer =
         (190 + Math.random() * 140 - (wave - 4) * 16) / attackVolume() / disasterVolume();
+      if (raining) disasterTimer *= 0.55;
     }
 
     if (flashT > 0) flashT--;
@@ -4377,7 +5068,7 @@
           maxX = Math.max(maxX, s.x0, s.x1);
         }
         const nearGround = player.y + player.h >= GROUND_Y - 36;
-        if (nearGround && px >= minX - 10 && px <= maxX + 10) onLine = true;
+        if (!isGreenMax() && nearGround && px >= minX - 10 && px <= maxX + 10) onLine = true;
         // 縦の稲妻ボルト（開始 x 付近）
         const boltX = groundBolt.x;
         if (Math.abs(px - boltX) < 14 + player.w * 0.35 && py < GROUND_Y) {
@@ -4519,7 +5210,7 @@
           const py = player.y + player.h / 2;
           const dx = px - ex;
           const dy = py - ey;
-          if (dx * dx + dy * dy < 72 * 72) {
+          if (!isGreenMax() && dx * dx + dy * dy < 72 * 72) {
             if (hurtPlayer({ icbm: true, hitX: ex })) return;
           }
           continue;
@@ -4546,6 +5237,7 @@
           explosions.push({ x: ex, y: ey, r: 28, life: 20, max: 20, kind: "icbm", maxR: 28 });
           sfxIcbmBoom();
           burst(ex, ey, "#e08040", 10);
+          urbanDropThisHit = false;
           applyColonyIcbmHit(m.targetTi);
           continue;
         }
@@ -4584,6 +5276,7 @@
             groundY: ey,
             colonyOnly: true,
           };
+          urbanDropThisHit = false;
           applyColonyLightningHit(m.targetTi);
           continue;
         }
@@ -4638,6 +5331,7 @@
     if (invuln > 0) invuln--;
     if (player.shieldFlashT > 0) player.shieldFlashT--;
     updatePlayerTilt();
+    try { tickVoidDroneEnvelope(); } catch (_) {}
     // VOID出現シーケンス
     updateVoidReveal();
     // 移動（左右＋上下・スターリンクなしブースターX）
@@ -4702,11 +5396,18 @@
     if (keys["ArrowLeft"] || keys["KeyA"]) player.x -= sp;
     if (keys["ArrowRight"] || keys["KeyD"]) player.x += sp;
     if (voidGravityT > 0) {
-      // 重力中：上下操作無効。左右のみ。じわじわ前方（上）へ
-      player.y -= 0.55;
+      // 重力中：上下操作無効。左右のみ。赤VOIDは膨張のため引っ張り弱め
+      const pull = voidReveal.form === "back" ? 0.22 : 0.55;
+      player.y -= pull;
       player.x = Math.max(12, Math.min(W - player.w - 12, player.x));
       player.y = Math.max(H * 0.38, Math.min(H * 0.86, player.y));
+      spaceGravitySafe++;
+      if (spaceGravitySafe > 0 && spaceGravitySafe % 60 === 0) score += 10;
       voidGravityT--;
+      if (voidGravityT <= 0) {
+        spaceGravitySafe = 0;
+        try { stopVoidGravityHum(); } catch (_) {}
+      }
     } else {
       if (keys["ArrowUp"] || keys["KeyW"]) player.y -= sp * 0.85;
       if (keys["ArrowDown"] || keys["KeyS"]) player.y += sp * 0.85;
@@ -4719,18 +5420,17 @@
     const canShoot = voidReveal.phase === "present" || voidReveal.phase === "aggro" || voidReveal.phase === "linked";
     if (canShoot && (keys["Space"] || keys["KeyZ"]) && player.cool <= 0) {
       const laser = voidReveal.laserMode;
-      player.cool = laser ? 10 : 12;
       if (laser) {
-        // 長いレーザー弾
-        bullets.push({
-          x: player.x + player.w / 2 - 2,
-          y: player.y - 4,
-          w: 3,
-          h: 28,
-          vy: -14,
-          kind: "laser",
+        player.cool = 16;
+        spaceBeams.push({
+          x: player.x + player.w / 2,
+          baseY: player.y - 2,
+          tipY: player.y - 2,
+          phase: "extend",
+          hitDone: false,
         });
       } else {
+        player.cool = 12;
         bullets.push({
           x: player.x + player.w / 2 - 2,
           y: player.y - 4,
@@ -4740,9 +5440,13 @@
           kind: "player",
         });
       }
-      try { sfxShoot && sfxShoot(); } catch (_) {}
+      try {
+        if (laser) sfxLaserBeam();
+        else sfxShoot();
+      } catch (_) {}
     }
     updateVoidOrbitBodies();
+    updateSpaceBeams();
     for (let i = bullets.length - 1; i >= 0; i--) {
       const b = bullets[i];
       b.y += b.vy;
@@ -4770,6 +5474,7 @@
               });
             }
             if (destroyed) {
+              score += 100;
               toast = n.kind === "p" ? "発光岩 破壊" : "岩 破壊";
               toastT = 35;
             } else {
@@ -4784,11 +5489,30 @@
         }
         if (hitNode) continue;
       }
+      // クラック部品を撃ち落とし
+      if (voidCracks.length) {
+        const cxb = b.x + b.w / 2;
+        const cyb = b.y + b.h / 2;
+        let hitCrack = false;
+        for (let ci = voidCracks.length - 1; ci >= 0; ci--) {
+          const c = voidCracks[ci];
+          const dx = cxb - c.x, dy = cyb - c.y;
+          const hr = 12 + Math.max(b.w, b.h) * 0.5;
+          if (dx * dx + dy * dy >= hr * hr) continue;
+          shatterVoidAt(c.x, c.y, "#e0b0ff", 8);
+          voidCracks.splice(ci, 1);
+          bullets.splice(i, 1);
+          score += 100;
+          hitCrack = true;
+          break;
+        }
+        if (hitCrack) continue;
+      }
       // VOIDコアに当たったら吸収（すり抜けなし）
       if (voidReveal.coreAlpha > 0.3) {
         const vcx = W * (voidReveal.cx != null ? voidReveal.cx : 0.5);
         const vcy = H * voidReveal.cy;
-        const hitR = 18 * voidReveal.scale + 8;
+        const hitR = (18 * voidReveal.scale * voidCoreGrowMul() + 8) * voidCoreHitScale();
         const bx = b.x + b.w / 2;
         const by = b.y + b.h / 2;
         const dx = bx - vcx, dy = by - vcy;
@@ -4806,6 +5530,7 @@
             });
           }
           bullets.splice(i, 1);
+          score += 50;
           // 第一遭遇：コア命中のみカウント（5発で怒り拡大）
           if (voidReveal.phase === "present") {
             voidReveal.shotsFired++;
@@ -4813,13 +5538,8 @@
             toastT = 40;
             try { sfxVoidThunder && sfxVoidThunder(); } catch (_) {}
           }
-          // FIGHT：体力削り
-          if (voidReveal.phase === "linked") {
-            voidReveal.hp = Math.max(0, voidReveal.hp - (b.kind === "laser" ? 0.6 : 0.4));
-            if (voidReveal.hp <= 0) {
-              voidReveal.hp = 0;
-              beginVoidExplosion();
-            }
+          if (voidReveal.phase === "linked" || voidReveal.phase === "aggro") {
+            applyVoidCoreDamage(0.5);
           }
           continue;
         }
@@ -4830,6 +5550,7 @@
     updateVoidPlanetHits();
     updateVoidCracks();
     updateVoidShrapnel();
+    updateVoidRageGas();
     // コアに体当たり → 即死（ヒットアンドアウェイ必須）
     updateVoidCoreContact();
     // 地球からのお助け
@@ -4858,10 +5579,12 @@
   /** VOID弾・岩が自機／シールドに当たったときのダメージ */
   function applyVoidPlayerHit(dmg, label, hitX) {
     if (player.unitHp == null) {
-      player.unitHp = 100;
-      player.unitHpMax = 100;
+      player.unitHp = 50;
+      player.unitHpMax = 50;
     }
     if (player.unitHp <= 0) return true;
+    spaceNoHit = false;
+    spaceGravitySafe = 0;
     const px = player.x + player.w / 2;
     const py = player.y + player.h / 2;
     if (player.shield > 0) {
@@ -4876,11 +5599,12 @@
       try { sfxBarrier && sfxBarrier(); } catch (_) {}
       return false;
     }
-    player.unitHp = Math.max(0, player.unitHp - dmg);
+    const chunk = (player.unitHpMax || 50) * 0.25;
+    player.unitHp = Math.max(0, player.unitHp - chunk);
     invuln = 32;
     applyHitTilt(hitX);
     spawnHitSparks(px, py, "purple");
-    toast = label + " −" + dmg;
+    toast = label + " −25%";
     toastT = 48;
     try { sfxHurt && sfxHurt(); } catch (_) {}
     if (player.unitHp <= 0) {
@@ -4929,16 +5653,22 @@
 
   function updateVoidOrbitBodies() {
     ensureVoidOrbitBodies();
+    const back = !!(voidReveal && voidReveal.form === "back");
+    const recMul = back ? 1.5 : 1;
+    const spin = 0.006 * (back ? 1.3 : 1);
     for (const b of voidOrbitBodies) {
+      if (b.spinAng == null) b.spinAng = b.a0 + t * 0.006;
+      else b.spinAng += spin;
       if (!b.alive) {
-        if (b.deadT > 0) b.deadT--;
+        if (b.deadT > 0) b.deadT -= recMul;
         if (b.deadT <= 0) {
           b.alive = true;
           b.hp = b.hpMax;
-          b.growT = 300; // 5秒で元サイズ
+          b.growT = 300; // 5秒で元サイズ（赤クラック時は recMul で短縮）
         }
       } else if (b.growT > 0) {
-        b.growT--;
+        b.growT -= recMul;
+        if (b.growT < 0) b.growT = 0;
       }
     }
   }
@@ -4952,9 +5682,19 @@
       b.alive = false;
       b.deadT = 180; // 3秒後に小さく再出現
       b.growT = 0;
+      try { applyVoidOrbitKillToCore(b.kind); } catch (_) {}
       return true;
     }
     return false;
+  }
+
+  /** 周回衛星破壊：茶はVOIDを減らさない。紫／赤（発光）だけ減らす */
+  function applyVoidOrbitKillToCore(kind) {
+    const vr = voidReveal;
+    if (!vr) return;
+    if (vr.phase !== "linked" && vr.phase !== "aggro") return;
+    if (kind !== "p") return;
+    applyVoidCoreDamage(2);
   }
 
   function getVoidOrbitNodes() {
@@ -4965,17 +5705,24 @@
     const cy = H * (vr.cy != null ? vr.cy : 0.28);
     const sc = vr.scale || 1;
     const pulse = 1 + Math.sin(t * 0.04) * 0.03;
+    const gm = voidCoreGrowMul();
+    const spread = 1 + (gm - 1) * 0.9;
+    const pcy = player.y + player.h / 2;
+    const starKeep = pcy - 58 - 16;
     const out = [];
     for (const b of voidOrbitBodies) {
       if (!b.alive) continue;
-      const ang = b.a0 + t * 0.006;
+      const ang = b.spinAng != null ? b.spinAng : b.a0 + t * 0.006;
       const squash = 0.72;
       const grow = b.growT > 0 ? (0.22 + 0.78 * (1 - b.growT / 300)) : 1;
-      const sVis = b.sBase * sc * grow;
+      const sVis = b.sBase * sc * grow * gm;
+      let or = b.o * sc * pulse * spread;
+      const maxOr = Math.max(b.o * sc * 0.62, (starKeep - cy) / squash);
+      if (or > maxOr) or = maxOr;
       out.push({
         id: b.id,
-        x: cx + Math.cos(ang) * b.o * sc * pulse,
-        y: cy + Math.sin(ang) * b.o * sc * pulse * squash,
+        x: cx + Math.cos(ang) * or,
+        y: cy + Math.sin(ang) * or * squash,
         kind: b.kind,
         s: sVis * 2.0,
         sDraw: sVis,
@@ -4987,118 +5734,306 @@
     return out;
   }
 
-  /** 地球お助け：不利時に電波＋アイテム */
-  function updateSpaceAssists() {
-    const vr = voidReveal;
-    if (vr.phase !== "linked" && vr.phase !== "aggro") {
-      spaceAssists = [];
+  function applySpaceBeamImpact(hit) {
+    if (!hit) return;
+    if (hit.kind === "node") {
+      const n = hit.node;
+      const destroyed = damageVoidOrbitBody(n.id);
+      for (let k = 0; k < (destroyed ? 10 : 5); k++) {
+        particles.push({
+          x: n.x, y: n.y,
+          vx: (Math.random() - 0.5) * 3.5,
+          vy: (Math.random() - 0.5) * 3.5,
+          life: 12 + Math.random() * 14,
+          max: 26,
+          color: n.kind === "p" ? "#d080ff" : "#8a6a40",
+          size: 1.5 + Math.random() * 2.5,
+        });
+      }
+      if (destroyed) {
+        score += 100;
+        toast = n.kind === "p" ? "発光岩 破壊" : "岩 破壊";
+        toastT = 35;
+      } else {
+        toast = "発光岩 ひび割れ";
+        toastT = 25;
+      }
+      try { sfxHurt && sfxHurt(); } catch (_) {}
       return;
     }
-    if (spaceAssistCd > 0) spaceAssistCd--;
-
-    const hpR = (player.unitHp != null ? player.unitHp : 100) / (player.unitHpMax || 100);
-    // 不利判定：UNIT 40%以下、または VOID HP が高くて長期戦
-    const voidR = vr.hpMax ? vr.hp / vr.hpMax : 1;
-    const needHelp = hpR <= 0.4 || (hpR <= 0.65 && voidR > 0.55);
-
-    if (needHelp && spaceAssistCd <= 0 && spaceAssists.length < 2) {
-      spaceAssistCd = 280 + ((t * 13) % 120);
-      // 電波演出
-      vr.radioT = 90;
-      try { sfxRadioSignal(); } catch (_) {}
-      const kinds = ["repair", "shield", "rapid"];
-      // 低耐久時は repair 優先
-      const kind = hpR <= 0.35 ? "repair" : kinds[(t >> 3) % kinds.length];
-      const er = Math.min(W, H) * 0.145;
-      const ex = er * 0.55;
-      const ey = H - er * 0.55;
-      spaceAssists.push({
-        x: ex + 20 + Math.random() * 30,
-        y: ey - 10,
-        vx: 1.2 + Math.random() * 0.8,
-        vy: -2.2 - Math.random() * 0.6,
-        kind,
-        bob: Math.random() * Math.PI * 2,
-        life: 300, // 5秒で宇宙に消える
-        lifeMax: 300,
-        got: false,
-      });
-      const labels = { repair: "応急修理キット", shield: "シールド補給", rapid: "速射ブースター" };
-      toast = "地球指令室 — " + (labels[kind] || "支援物資") + " 送信";
-      toastT = 100;
+    if (hit.kind === "crack") {
+      shatterVoidAt(hit.x, hit.y, "#e0b0ff", 8);
+      voidCracks.splice(hit.index, 1);
+      score += 100;
+      return;
     }
+    if (hit.kind === "core") {
+      for (let k = 0; k < 4; k++) {
+        particles.push({
+          x: hit.x, y: hit.y,
+          vx: (Math.random() - 0.5) * 2,
+          vy: (Math.random() - 0.5) * 2,
+          life: 12 + Math.random() * 10,
+          max: 22,
+          color: "#c080ff",
+          size: 2 + Math.random() * 2,
+        });
+      }
+      score += 50;
+      if (voidReveal.phase === "linked" || voidReveal.phase === "aggro") {
+        const beads = Math.max(1, hit.beads | 0);
+        applyVoidCoreDamage(beads * 0.5);
+      }
+    }
+  }
 
+  /** レーザーが進む区間で最も自機に近い当たり（VOID／衛星／クラック） */
+  function spaceBeamFirstHit(x, yFrom, yTo) {
+    const top = Math.min(yFrom, yTo);
+    const bot = Math.max(yFrom, yTo);
+    let bestY = -Infinity;
+    let hit = null;
+    function consider(y, h) {
+      if (y < top - 2 || y > bot + 2) return;
+      if (y > bestY) {
+        bestY = y;
+        hit = h;
+        hit.y = y;
+      }
+    }
+    if (voidReveal.coreAlpha > 0.3) {
+      const nodes = getVoidOrbitNodes();
+      for (let ni = 0; ni < nodes.length; ni++) {
+        const n = nodes[ni];
+        const hr = n.s + 6;
+        const dx = x - n.x;
+        if (dx * dx > hr * hr) continue;
+        const dy = Math.sqrt(Math.max(0, hr * hr - dx * dx));
+        consider(n.y + dy, { kind: "node", node: n, x: n.x });
+      }
+      const vcx = W * (voidReveal.cx != null ? voidReveal.cx : 0.5);
+      const vcy = H * voidReveal.cy;
+      const hitR = (18 * voidReveal.scale * voidCoreGrowMul() + 8) * voidCoreHitScale();
+      const dx = x - vcx;
+      if (dx * dx <= hitR * hitR) {
+        const dy = Math.sqrt(Math.max(0, hitR * hitR - dx * dx));
+        consider(vcy + dy, { kind: "core", x: vcx });
+      }
+    }
+    for (let ci = 0; ci < voidCracks.length; ci++) {
+      const c = voidCracks[ci];
+      const hr = 12;
+      const dx = x - c.x;
+      if (dx * dx > hr * hr) continue;
+      const dy = Math.sqrt(Math.max(0, hr * hr - dx * dx));
+      consider(c.y + dy, { kind: "crack", index: ci, x: c.x });
+    }
+    return hit;
+  }
+
+  function updateSpaceBeams() {
+    if (!spaceBeams.length) return;
+    const shipX = player.x + player.w / 2;
+    const shipY = player.y - 2;
+    for (let i = spaceBeams.length - 1; i >= 0; i--) {
+      const b = spaceBeams[i];
+      if (b.phase === "extend") {
+        b.x = shipX;
+        b.baseY = shipY;
+        const nextTip = b.tipY - 26;
+        const floorY = 10;
+        const hit = spaceBeamFirstHit(b.x, b.tipY, Math.max(floorY, nextTip));
+        if (hit) {
+          b.tipY = hit.y;
+          if (!b.hitDone) {
+            b.hitDone = true;
+            if (hit.kind === "core") {
+              const vcx = W * (voidReveal.cx != null ? voidReveal.cx : 0.5);
+              const vcy = H * voidReveal.cy;
+              const hitR = (18 * voidReveal.scale * voidCoreGrowMul() + 8) * voidCoreHitScale();
+              let beads = 0;
+              const y0 = Math.min(b.baseY, b.tipY);
+              const y1 = Math.max(b.baseY, b.tipY);
+              for (let y = y0; y <= y1; y += 16) {
+                const dx = b.x - vcx;
+                const dy = y - vcy;
+                if (dx * dx + dy * dy < hitR * hitR) beads++;
+              }
+              hit.beads = Math.max(1, beads);
+            }
+            applySpaceBeamImpact(hit);
+          }
+          b.phase = "retract";
+        } else if (nextTip <= floorY) {
+          b.tipY = floorY;
+          b.phase = "retract";
+        } else {
+          b.tipY = nextTip;
+        }
+      } else {
+        b.baseY -= 22;
+        if (b.baseY <= b.tipY + 2) spaceBeams.splice(i, 1);
+      }
+    }
+  }
+
+  function drawSpaceBeams() {
+    if (!spaceBeams.length) return;
+    ctx.save();
+    for (const b of spaceBeams) {
+      const y0 = Math.min(b.baseY, b.tipY);
+      const y1 = Math.max(b.baseY, b.tipY);
+      const h = Math.max(2, y1 - y0);
+      const x = b.x;
+      ctx.strokeStyle = "rgba(80,200,255,0.28)";
+      ctx.lineWidth = 9;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(x, b.baseY);
+      ctx.lineTo(x, b.tipY);
+      ctx.stroke();
+      const g = ctx.createLinearGradient(x, b.baseY, x, b.tipY);
+      g.addColorStop(0, "rgba(180,255,255,0.2)");
+      g.addColorStop(0.12, "rgba(140,240,255,0.95)");
+      g.addColorStop(0.55, "rgba(90,210,255,0.9)");
+      g.addColorStop(1, "rgba(255,255,255,0.95)");
+      ctx.strokeStyle = g;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(x, b.baseY);
+      ctx.lineTo(x, b.tipY);
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(255,255,255,0.95)";
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(x, b.baseY);
+      ctx.lineTo(x, b.tipY);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.beginPath();
+      ctx.arc(x, b.tipY, 2.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function earthRadioOrigin() {
+    return { x: 8, y: H - 8 };
+  }
+
+  function earthRadioMaxR() {
+    const vr = voidReveal;
+    const tLeft = vr && vr.radioT != null ? vr.radioT : 0;
+    return 200 + (90 - tLeft) * 1.4;
+  }
+
+  function playerInEarthRadio() {
+    const vr = voidReveal;
+    if (!vr || vr.radioT <= 0) return false;
+    const o = earthRadioOrigin();
     const px = player.x + player.w / 2;
     const py = player.y + player.h / 2;
-    for (let i = spaceAssists.length - 1; i >= 0; i--) {
-      const a = spaceAssists[i];
-      if (a.got) { spaceAssists.splice(i, 1); continue; }
-      a.life--;
-      a.bob += 0.08;
-      a.x += a.vx;
-      a.y += a.vy;
-      // 上昇後は減速して漂う
-      if (a.vy < -0.3) a.vy *= 0.985;
-      else {
-        a.vy = Math.sin(a.bob) * 0.35;
-        a.vx *= 0.99;
-      }
-      // 回収
-      const dx = px - a.x, dy = py - a.y;
-      if (dx * dx + dy * dy < 28 * 28) {
-        a.got = true;
-        const age = (a.lifeMax || 300) - a.life;
-        if (a.kind === "repair") {
-          const maxU = player.unitHpMax || 100;
-          let heal = 5;
-          let healLabel = "+5";
-          if (age <= 60) {
-            player.unitHp = maxU;
-            toast = "🔧 応急修理 — 全回復";
-          } else {
-            if (age <= 120) { heal = 20; healLabel = "+20"; }
-            else if (age <= 180) { heal = 15; healLabel = "+15"; }
-            else if (age <= 240) { heal = 10; healLabel = "+10"; }
-            player.unitHp = Math.min(maxU, (player.unitHp || 0) + heal);
-            toast = "🔧 応急修理 — UNIT " + healLabel;
-          }
-        } else if (a.kind === "shield") {
-          player.shield = Math.max(player.shield || 0, 2);
-          player.shieldFlashT = 16;
-          toast = "🛡 地球シールド補給";
-        } else {
-          player.rapid = true;
-          player.rapidT = Math.max(player.rapidT || 0, 360);
-          toast = "⚡ 速射ブースター 受信";
-        }
-        toastT = 90;
-        try { sfxRadioSignal(); } catch (_) {}
-        spaceAssists.splice(i, 1);
-        continue;
-      }
-      if (a.life <= 0) spaceAssists.splice(i, 1);
+    const dx = px - o.x;
+    const dy = py - o.y;
+    const dist = Math.hypot(dx, dy);
+    const maxR = earthRadioMaxR();
+    if (dist > maxR + 22) return false;
+    const ang = Math.atan2(dy, dx);
+    const near = 1 - Math.min(1, dist / 240);
+    const extra = near * 0.62;
+    const a0 = -Math.PI * 0.42 - extra;
+    const a1 = -Math.PI * 0.08 + extra * 0.4;
+    return ang >= a0 && ang <= a1;
+  }
+
+  function startEarthRadioPulse() {
+    const vr = voidReveal;
+    vr.radioT = 90;
+    vr.radioHealDone = false;
+    try { sfxRadioSignal(); } catch (_) {}
+  }
+
+  function tryEarthRadioHeal() {
+    const vr = voidReveal;
+    if (!vr || vr.form !== "back") return;
+    if (!vr || vr.radioT <= 0 || vr.radioHealDone) return;
+    if (!playerInEarthRadio()) return;
+    const maxU = player.unitHpMax || 50;
+    const before = player.unitHp != null ? player.unitHp : maxU;
+    const heal = maxU * 0.25;
+    player.unitHp = Math.min(maxU, before + heal);
+    vr.radioHealDone = true;
+    const gained = player.unitHp - before;
+    if (gained > 0) {
+      toast = "地球電波受信 — UNIT +25%";
+      toastT = 80;
     }
+  }
+
+  /** お助け電波：赤VOID中のみ、1プレイ1回、ランダム。浴びたら自機25%。VOIDは回復しない */
+  function updateSpaceAssists() {
+    const vr = voidReveal;
+    spaceAssists = [];
+    if (vr.form !== "back" || vr.phase !== "linked") {
+      tryEarthRadioHeal();
+      return;
+    }
+    const maxU = player.unitHpMax || 50;
+    const hp = player.unitHp != null ? player.unitHp : maxU;
+    const hurt = hp < maxU - 0.01;
+    if (hurt && !spaceRadioRolled) {
+      spaceRadioRolled = true;
+      if (Math.random() < 0.5) {
+        spaceRadioOffered = true;
+        startEarthRadioPulse();
+        toast = "地球指令室 — 電波送信";
+        toastT = 90;
+      }
+    }
+    tryEarthRadioHeal();
   }
 
   /** 岩接触：岩 -10 / 紫閃光岩 -15（linked／aggro＝FIGHT中） */
   /** コア接触：ゲージ急減→大爆発 The End */
   function updateVoidCoreContact() {
     const vr = voidReveal;
-    if (vr.phase !== "aggro" && vr.phase !== "linked") return;
-    if (vr.coreAlpha < 0.3) return;
+    if (vr.phase !== "aggro" && vr.phase !== "linked") {
+      vr.coreTouchT = 0;
+      return;
+    }
+    if (vr.coreAlpha < 0.3) {
+      vr.coreTouchT = 0;
+      return;
+    }
     const vcx = W * (vr.cx != null ? vr.cx : 0.5);
     const vcy = H * (vr.cy != null ? vr.cy : 0.28);
-    const hitR = 20 * (vr.scale || 1);
+    const hitR = 20 * (vr.scale || 1) * voidCoreGrowMul() * voidCoreHitScale();
     const px = player.x + player.w / 2;
     const py = player.y + player.h / 2;
     const dx = px - vcx, dy = py - vcy;
-    if (dx * dx + dy * dy >= hitR * hitR) return;
-    // たちまち削る
-    player.unitHp = Math.max(0, (player.unitHp != null ? player.unitHp : 100) - 25);
-    invuln = 8;
-    if (player.unitHp <= 0) {
+    if (dx * dx + dy * dy >= hitR * hitR) {
+      vr.coreTouchT = 0;
+      return;
+    }
+    spaceNoHit = false;
+    spaceGravitySafe = 0;
+    vr.coreTouchT = (vr.coreTouchT || 0) + 1;
+    const dots = (vr.escorts || []).filter((e) => e.alive).length;
+    const maxT = dots > 0 ? dots * 60 : 12;
+    if (vr.coreTouchT % 60 === 1) {
+      if (player.unitHp == null) {
+        player.unitHp = 50;
+        player.unitHpMax = 50;
+      }
+      const chunk = (player.unitHpMax || 50) * 0.25;
+      player.unitHp = Math.max(0, player.unitHp - chunk);
+      toast = "コア接触 −25%";
+      toastT = 40;
+      try { sfxHurt && sfxHurt(); } catch (_) {}
+    }
+    if (vr.coreTouchT >= maxT || player.unitHp <= 0) {
+      player.unitHp = 0;
       player.lives = 0;
-      // 大爆発パーティクル
       for (let k = 0; k < 28; k++) {
         particles.push({
           x: px, y: py,
@@ -5122,8 +6057,8 @@
     const vr = voidReveal;
     if (vr.phase !== "linked" && vr.phase !== "aggro") return;
     if (player.unitHp == null) {
-      player.unitHp = 100;
-      player.unitHpMax = 100;
+      player.unitHp = 50;
+      player.unitHpMax = 50;
     }
 
     for (const e of vr.escorts) {
@@ -5185,31 +6120,157 @@
       const isGlow = n.kind === "p";
       shatterVoidAt(n.x, n.y, isGlow ? "#d890ff" : "#c8a070", 14);
       damageVoidOrbitBody(n.id);
-      const dmg = isGlow ? 15 : 10;
+      const ringUp = (vr.escorts || []).some((e) => e.alive);
+      if (!isGlow && ringUp) continue;
+      const dmg = isGlow ? 1 : 0.5;
       const label = isGlow ? "発光岩ヒット" : "岩ヒット";
       applyVoidPlayerHit(dmg, label, n.x);
       return;
     }
   }
 
+  function pickVoidWarpDest(vr) {
+    const minD = 0.22;
+    let nx = vr.cx;
+    let ny = vr.cy;
+    for (let i = 0; i < 8; i++) {
+      nx = 0.28 + Math.random() * 0.44;
+      ny = 0.18 + Math.random() * 0.28;
+      const dx = nx - vr.cx;
+      const dy = ny - vr.cy;
+      if (dx * dx + dy * dy >= minD * minD) break;
+    }
+    vr.cx = Math.max(0.22, Math.min(0.78, nx));
+    vr.cy = Math.max(0.14, Math.min(0.55, ny));
+    vr.targetCx = vr.cx;
+    vr.targetCy = vr.cy;
+    vr.chargeT = 0;
+    vr.chargeVx = 0;
+    vr.chargeVy = 0;
+  }
+
+  /** 赤VOIDワープ：止まって輪郭が粗くなり、粒のまま別位置へ。無になる瞬間なし */
+  function beginVoidWarp(vr) {
+    if (!vr || vr.form !== "back" || vr.phase === "boom") return;
+    if (vr.warpStage) return;
+    vr.warpStage = "freeze";
+    vr.warpHold = 0;
+    vr.warpGrain = 0;
+    vr.chargeT = 0;
+    vr.chargeVx = 0;
+    vr.chargeVy = 0;
+  }
+
+  function updateVoidWarp(vr) {
+    if (!vr.warpStage) return false;
+    vr.chargeT = 0;
+    if (vr.warpStage === "freeze") {
+      vr.warpHold++;
+      vr.warpGrain = 0;
+      if (vr.warpHold >= 36) {
+        vr.warpStage = "coarsen";
+        vr.warpHold = 0;
+      }
+      return true;
+    }
+    if (vr.warpStage === "coarsen") {
+      vr.warpHold++;
+      vr.warpGrain = Math.min(1, vr.warpHold / 28);
+      if (vr.warpHold >= 28) {
+        pickVoidWarpDest(vr);
+        vr.warpStage = "appear";
+        vr.warpHold = 0;
+        vr.warpGrain = 1;
+      }
+      return true;
+    }
+    if (vr.warpStage === "appear") {
+      vr.warpHold++;
+      vr.warpGrain = 1;
+      if (vr.warpHold >= 18) {
+        vr.warpStage = "restore";
+        vr.warpHold = 0;
+      }
+      return true;
+    }
+    if (vr.warpStage === "restore") {
+      vr.warpHold++;
+      vr.warpGrain = Math.max(0, 1 - vr.warpHold / 24);
+      if (vr.warpHold >= 24) {
+        vr.warpStage = null;
+        vr.warpHold = 0;
+        vr.warpGrain = 0;
+        vr.warpCd = 150 + ((vr.moveT * 17) % 40);
+      }
+      return true;
+    }
+    vr.warpStage = null;
+    vr.warpGrain = 0;
+    return false;
+  }
+
+  function drawVoidWarpGrain(cx, cy, cr, grain) {
+    if (grain < 0.02) return;
+    const cell = 6 + grain * 10;
+    const R = cr * 4.15;
+    ctx.save();
+    ctx.globalAlpha = 0.45 + grain * 0.4;
+    const x0 = cx - R;
+    const y0 = cy - R;
+    for (let y = y0; y < cy + R; y += cell) {
+      for (let x = x0; x < cx + R; x += cell) {
+        const px = x + cell * 0.5;
+        const py = y + cell * 0.5;
+        const dx = px - cx;
+        const dy = py - cy;
+        const d = Math.hypot(dx, dy);
+        if (d > R || d < cr * 0.35) continue;
+        const rim = Math.abs(d - cr * 2.35);
+        const speck = ((Math.sin(px * 9.1 + py * 4.7) * 0.5 + 0.5) * grain);
+        if (rim > cell * 1.8 && speck < 0.62) continue;
+        const bx = x;
+        const by = y;
+        const hot = rim < cell * 1.1;
+        ctx.fillStyle = hot
+          ? `rgba(255,${90 + ((px * 13) | 0) % 80},${40 + ((py * 9) | 0) % 50},1)`
+          : `rgba(${70 + ((px * 5) | 0) % 50},8,${20 + ((py * 7) | 0) % 40},0.95)`;
+        ctx.fillRect(bx, by, cell * 0.92, cell * 0.92);
+      }
+    }
+    ctx.restore();
+  }
+
+  function voidFrontShouldHold(vr) {
+    if (!vr || vr.form !== "front") return false;
+    const max = vr.hpMax || 100;
+    return vr.hp > max * 0.9;
+  }
+  function pinVoidFrontPos(vr) {
+    vr.chargeT = 0;
+    vr.cx = vr.holdCx != null ? vr.holdCx : 0.5;
+    vr.cy = vr.holdCy != null ? vr.holdCy : 0.26;
+  }
+
   /** VOIDコア：徘徊＋自機（ブースター）へ突進 */
-  function updateVoidCoreMotion(vr, roamAmpX, roamAmpY, baseCy, speed) {
+  function updateVoidCoreMotion(vr, roamAmpX, roamAmpY, baseCy, speed, opt) {
     vr.moveT++;
+    const chargeSp = (opt && opt.chargeSp) || 0.012;
+    const chargeLen = (opt && opt.chargeLen) || 42;
+    const cdBase = (opt && opt.cdBase) || 200;
+    const cdSpan = (opt && opt.cdSpan) || 120;
     // クールダウン消化
     if (vr.chargeT <= 0 && vr.chargeCd > 0) vr.chargeCd--;
     // 突進開始（linked/aggro のみ呼び出し側で頻度調整）
-    if (vr.chargeT <= 0 && vr.chargeCd <= 0) {
+    if ((!opt || !opt.noCharge) && vr.chargeT <= 0 && vr.chargeCd <= 0) {
       const pcx = (player.x + player.w / 2) / W;
       const pcy = (player.y + player.h / 2) / H;
       const dx = pcx - vr.cx;
       const dy = pcy - vr.cy;
       const len = Math.hypot(dx, dy) || 1;
-      // 突進速度（画面比 / フレーム）
-      const sp = 0.012;
-      vr.chargeVx = (dx / len) * sp;
-      vr.chargeVy = (dy / len) * sp;
-      vr.chargeT = 42; // 約0.7秒突進
-      vr.chargeCd = 200 + ((vr.moveT * 17) % 120); // 次まで間隔
+      vr.chargeVx = (dx / len) * chargeSp;
+      vr.chargeVy = (dy / len) * chargeSp;
+      vr.chargeT = chargeLen;
+      vr.chargeCd = cdBase + ((vr.moveT * 17) % cdSpan);
     }
     if (vr.chargeT > 0) {
       vr.chargeT--;
@@ -5245,8 +6306,9 @@
       const onX = pcx + Math.cos(e.ang) * R;
       const onY = pcy + Math.sin(e.ang) * R;
       if (arrive && !e.arrived) {
-        e.x += (onX - e.x) * 0.12;
-        e.y += (onY - e.y) * 0.12;
+        const sp = (opts && opts.arriveSp) || 0.12;
+        e.x += (onX - e.x) * sp;
+        e.y += (onY - e.y) * sp;
         if (Math.hypot(onX - e.x, onY - e.y) < 5) {
           e.arrived = true;
           e.x = onX;
@@ -5265,48 +6327,169 @@
     }
   }
 
-  /** VOID HP半分以下：クラックを全方向無差別に飛ばす */
-  function updateVoidCracks() {
+  /** コア肥大。50%切替 +10%、以後 40/30/20/10% でさらに大きく（後半ほど目立つ） */
+  function voidCoreGrowMul() {
     const vr = voidReveal;
-    if (vr.phase !== "linked" && vr.phase !== "aggro") {
-      voidCracks = [];
+    let m = 1;
+    if (vr.rageCoreGrown) m += 0.10;
+    if (vr.form !== "back" && !vr.rageCoreGrown) return m;
+    const hpR = (vr.hpMax || 100) > 0 ? vr.hp / (vr.hpMax || 100) : 1;
+    if (hpR <= 0.40) m += 0.12;
+    if (hpR <= 0.30) m += 0.16;
+    if (hpR <= 0.20) m += 0.22;
+    if (hpR <= 0.10) m += 0.28;
+    return m;
+  }
+
+  function voidCoreHitScale() {
+    const st = voidReveal && voidReveal.warpStage;
+    if (st === "coarsen" || st === "appear") return 0.36;
+    if (st === "restore") return 0.6;
+    return 1;
+  }
+
+  function applyVoidCoreDamage(amt) {
+    const vr = voidReveal;
+    if (voidShiftLock || vr.form === "shift" || vr.phase === "boom") return;
+    if (vr.form === "front") {
+      if (vr.hp - amt <= 50) {
+        vr.hp = 50;
+        beginVoidHandoff();
+      } else {
+        vr.hp -= amt;
+      }
       return;
     }
-    const half = (vr.hpMax || 100) * 0.5;
-    // トーストと同じ条件：HP半分以下ならクラック発射（hpVisible不要）
-    const raging = vr.hp <= half && vr.hp > 0;
-    vr.rage = raging
-      ? Math.min(1, (vr.rage || 0) + 0.035)
-      : Math.max(0, (vr.rage || 0) - 0.02);
-
-    // 発射
-    if (raging) {
-      if (voidCrackCd > 0) voidCrackCd--;
-      if (voidCrackCd <= 0) {
-        voidCrackCd = 55; // 連射間隔（抑えめ）
-        const cx = W * (vr.cx != null ? vr.cx : 0.5);
-        const cy = H * (vr.cy != null ? vr.cy : 0.28);
-        const n = 5; // 1ウェーブ本数
-        const base = Math.random() * Math.PI * 2;
-        for (let i = 0; i < n; i++) {
-          const ang = base + (i / n) * Math.PI * 2 + (Math.random() - 0.5) * 0.15;
-          const spd = 2.8 + Math.random() * 1.6;
-          voidCracks.push({
-            x: cx,
-            y: cy,
-            vx: Math.cos(ang) * spd,
-            vy: Math.sin(ang) * spd,
-            life: 95 + (Math.random() * 25) | 0,
-            len: 18 + Math.random() * 10,
-            wiggle: Math.random() * Math.PI * 2,
-            thick: 1.6 + Math.random() * 1.2,
-          });
-        }
-        try { sfxVoidCrackAnger(); } catch (_) {}
+    if (vr.form === "back") {
+      vr.hp = Math.max(0, vr.hp - amt);
+      if (vr.hp <= 0) {
+        vr.hp = 0;
+        beginVoidExplosion();
       }
     }
+  }
 
-    // 移動・寿命・被弾
+  function beginVoidHandoff() {
+    const vr = voidReveal;
+    if (voidShiftLock || vr.form === "back") return;
+    voidShiftLock = true;
+    voidShiftTimer = 120;
+    vr.form = "shift";
+    vr.rageWarnT = 0;
+    vr.shiftBlinkDone = false;
+    vr.rageBlinkStarted = true;
+    vr.rageBurstDone = false;
+    vr.rageArmed = false;
+    vr.rage = 0;
+    vr.flash = 0.72;
+    vr.backCrackWait = 0;
+    toast = "VOID SHIFT";
+    toastT = 80;
+    try { startVoidShiftThunder(); } catch (_) {}
+  }
+
+  function startVoidBackHalf() {
+    const vr = voidReveal;
+    if (voidShiftLock || voidShiftTimer > 0) return;
+    if (vr.form === "back") return;
+    vr.form = "back";
+    vr.hp = Math.min(vr.hp, 49);
+    vr.rage = 1;
+    vr.flash = 0.7;
+    vr.rageCoreGrown = true;
+    vr.rageArmed = true;
+    vr.backCrackWait = 1;
+    voidCrackCd = 8;
+    vr.warpStage = null;
+    vr.warpHold = 0;
+    vr.warpGrain = 0;
+    vr.warpCd = 70;
+    spawnVoidRageBurst();
+    try { sfxVoidRageBurst(); } catch (_) {}
+  }
+
+  /** 前半VOID：通常攻撃＋重力。クラックなし */
+  function updateVoidFront() {
+    const vr = voidReveal;
+    vr.rage = 0;
+    if (vr.hp <= 0) return;
+    if (voidGravityCd > 0) voidGravityCd--;
+    if (voidGravityCd <= 0 && voidGravityT <= 0) {
+      voidGravityCd = 240;
+      voidGravityT = 120;
+      toast = "GRAVITY WELL — 最前線拘束";
+      toastT = 55;
+      try { sfxVoidGravity(); } catch (_) {}
+      try { startVoidGravityHum(); } catch (_) {}
+    }
+  }
+
+  /** 交代：voidShiftLock 中は点滅のみ。タイマー0まで後半へ進まない */
+  function updateVoidShift() {
+    const vr = voidReveal;
+    if (!voidShiftLock) return;
+    if (voidShiftTimer > 0) voidShiftTimer--;
+    const elapsed = 120 - voidShiftTimer;
+    const step = Math.floor(Math.max(0, elapsed - 1) / 12);
+    vr.rage = (step % 2 === 1) ? 1 : 0;
+    vr.flash = 0.72;
+    vr.rageArmed = false;
+    if (voidShiftTimer > 0) return;
+    voidShiftLock = false;
+    voidShiftTimer = 0;
+    try { stopVoidShiftThunder(); } catch (_) {}
+    startVoidBackHalf();
+  }
+
+  /** 後半VOID：クラック＋弱い重力。点滅仕様は触らない */
+  function updateVoidBack() {
+    const vr = voidReveal;
+    if (vr.hp <= 0) return;
+    vr.rage = 1;
+    vr.flash = Math.max(vr.flash || 0, 0.45);
+    if (voidGravityCd > 0) voidGravityCd--;
+    if (voidGravityCd <= 0 && voidGravityT <= 0) {
+      voidGravityCd = 260;
+      voidGravityT = 120;
+      toast = "GRAVITY WELL — 最前線拘束";
+      toastT = 55;
+      try { sfxVoidGravity(); } catch (_) {}
+      try { startVoidGravityHum(); } catch (_) {}
+    }
+    if ((vr.backCrackWait || 0) > 0) {
+      vr.backCrackWait--;
+      return;
+    }
+    if (vr.t % 120 === 1) {
+      toast = "VOID CRACK — 無差別攻撃";
+      toastT = 50;
+    }
+    if (voidCrackCd > 0) voidCrackCd--;
+    if (voidCrackCd <= 0) {
+      voidCrackCd = 55;
+      const cx = W * (vr.cx != null ? vr.cx : 0.5);
+      const cy = H * (vr.cy != null ? vr.cy : 0.28);
+      const n = 5;
+      const base = Math.random() * Math.PI * 2;
+      for (let i = 0; i < n; i++) {
+        const ang = base + (i / n) * Math.PI * 2 + (Math.random() - 0.5) * 0.15;
+        const spd = 2.8 + Math.random() * 1.6;
+        voidCracks.push({
+          x: cx,
+          y: cy,
+          vx: Math.cos(ang) * spd,
+          vy: Math.sin(ang) * spd,
+          life: 95 + (Math.random() * 25) | 0,
+          len: 18 + Math.random() * 10,
+          wiggle: Math.random() * Math.PI * 2,
+          thick: 1.6 + Math.random() * 1.2,
+        });
+      }
+      try { sfxVoidCrackAnger(); } catch (_) {}
+    }
+  }
+
+  function updateVoidCrackProjectiles() {
     const px = player.x + player.w / 2;
     const py = player.y + player.h / 2;
     const pr = Math.min(player.w, player.h) * 0.45;
@@ -5325,10 +6508,107 @@
       if (dx * dx + dy * dy < (pr + 10) * (pr + 10)) {
         shatterVoidAt(c.x, c.y, "#e0b0ff", 12);
         voidCracks.splice(i, 1);
-        applyVoidPlayerHit(15, "クラック直撃", c.x);
-        continue;
+        applyVoidPlayerHit(1, "クラック直撃", c.x);
       }
     }
+  }
+
+  /** 前半VOID／交代／後半VOIDを別体として更新（同一攻撃ループで分岐しない） */
+  function updateVoidCracks() {
+    const vr = voidReveal;
+    if (vr.phase !== "linked" && vr.phase !== "aggro") {
+      voidCracks = [];
+      return;
+    }
+    if (vr.phase !== "linked") {
+      updateVoidCrackProjectiles();
+      return;
+    }
+    if (vr.form === "front" && vr.hp <= 50 && !voidShiftLock) beginVoidHandoff();
+    if (voidShiftLock || voidShiftTimer > 0) {
+      updateVoidShift();
+      updateVoidCrackProjectiles();
+      return;
+    }
+    const form = vr.form || "front";
+    if (form === "front") updateVoidFront();
+    else if (form === "back") updateVoidBack();
+    updateVoidCrackProjectiles();
+  }
+
+  /** 赤クラック切替：爆発ガス体＋破片（どちらも攻撃判定あり） */
+  function spawnVoidRageBurst() {
+    const vr = voidReveal;
+    const cx = W * (vr.cx != null ? vr.cx : 0.5);
+    const cy = H * (vr.cy != null ? vr.cy : 0.28);
+    shatterVoidAt(cx, cy, "#ffb0a0", 10);
+    shatterVoidAt(cx, cy, "#d890ff", 8);
+    voidRageGas.push({
+      x: cx,
+      y: cy,
+      r: 16,
+      life: 48,
+      maxLife: 48,
+      maxR: 72,
+    });
+    const n = 10 + ((Math.random() * 4) | 0);
+    for (let i = 0; i < n; i++) {
+      const ang = (i / n) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+      const spd = 3.2 + Math.random() * 2.8;
+      voidShrapnel.push({
+        x: cx + (Math.random() - 0.5) * 8,
+        y: cy + (Math.random() - 0.5) * 8,
+        vx: Math.cos(ang) * spd,
+        vy: Math.sin(ang) * spd,
+        life: 28 + ((Math.random() * 22) | 0),
+        r: 2.0 + Math.random() * 2.4,
+        color: Math.random() < 0.5 ? "#e07060" : "#c8a070",
+        rot: Math.random() * Math.PI * 2,
+        rv: (Math.random() - 0.5) * 0.32,
+      });
+    }
+  }
+
+  function updateVoidRageGas() {
+    if (!voidRageGas.length) return;
+    const px = player.x + player.w / 2;
+    const py = player.y + player.h / 2;
+    const pr = Math.min(player.w, player.h) * 0.42;
+    for (let i = voidRageGas.length - 1; i >= 0; i--) {
+      const g = voidRageGas[i];
+      g.life--;
+      const k = 1 - g.life / g.maxLife;
+      g.r = g.maxR * (0.22 + 0.78 * k);
+      if (g.life <= 0) {
+        voidRageGas.splice(i, 1);
+        continue;
+      }
+      if (invuln > 0) continue;
+      const dx = px - g.x, dy = py - g.y;
+      const hr = g.r * 0.72 + pr;
+      if (dx * dx + dy * dy < hr * hr) {
+        shatterVoidAt(px, py, "#e08070", 10);
+        applyVoidPlayerHit(18, "爆発ガス", g.x);
+      }
+    }
+  }
+
+  function drawVoidRageGas() {
+    if (!voidRageGas.length) return;
+    ctx.save();
+    for (const g of voidRageGas) {
+      const a = Math.max(0, g.life / g.maxLife);
+      const rg = ctx.createRadialGradient(g.x, g.y, g.r * 0.12, g.x, g.y, g.r);
+      rg.addColorStop(0, `rgba(255,160,140,${0.55 * a})`);
+      rg.addColorStop(0.35, `rgba(200,40,80,${0.42 * a})`);
+      rg.addColorStop(0.7, `rgba(120,20,90,${0.22 * a})`);
+      rg.addColorStop(1, "rgba(40,0,20,0)");
+      ctx.fillStyle = rg;
+      ctx.beginPath();
+      ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
   }
 
   function beginVoidExplosion() {
@@ -5336,6 +6616,16 @@
     vr.phase = "boom";
     vr.t = 0;
     vr.flash = 1;
+    vr.boomHold = 0;
+    vr.clearFade = 0;
+    vr.warpStage = null;
+    vr.warpGrain = 0;
+    vr.warpHold = 0;
+    if (!spaceVoidKillScored) {
+      spaceVoidKillScored = true;
+      score += 5000;
+      if (spaceNoHit) score += 2000;
+    }
     toast = "VOID NEUTRALIZED";
     toastT = 120;
     const cx = W * (vr.cx != null ? vr.cx : 0.5);
@@ -5420,34 +6710,32 @@
   function drawVoidCracks() {
     if (!voidCracks.length) return;
     ctx.save();
-    for (const c of voidCracks) {
+    const maxDraw = 10;
+    const start = Math.max(0, voidCracks.length - maxDraw);
+    const rage = voidReveal.rage || 0;
+    ctx.strokeStyle = rage > 0.4
+      ? "rgba(255,90,70,0.95)"
+      : "rgba(220,160,255,0.95)";
+    ctx.fillStyle = "rgba(255,230,255,0.9)";
+    for (let i = start; i < voidCracks.length; i++) {
+      const c = voidCracks[i];
       const ang = Math.atan2(c.vy, c.vx);
       const a = Math.max(0.25, Math.min(1, c.life / 40));
       ctx.globalAlpha = a;
-      // ジグザグのクラック線
-      const rage = voidReveal.rage || 0;
-      ctx.strokeStyle = rage > 0.4
-        ? "rgba(255,90,70,0.95)"
-        : "rgba(220,160,255,0.95)";
       ctx.lineWidth = c.thick;
-      ctx.shadowColor = rage > 0.4 ? "#ff4020" : "#c060ff";
-      ctx.shadowBlur = 8;
       ctx.beginPath();
-      let x = c.x, y = c.y;
-      ctx.moveTo(x, y);
-      const segs = 4;
+      ctx.moveTo(c.x, c.y);
+      const segs = 2;
       for (let s = 1; s <= segs; s++) {
         const f = s / segs;
         const jx = Math.sin(c.wiggle + s * 1.7) * 5;
         const jy = Math.cos(c.wiggle + s * 1.3) * 5;
-        x = c.x + Math.cos(ang) * c.len * f + jx;
-        y = c.y + Math.sin(ang) * c.len * f + jy;
-        ctx.lineTo(x, y);
+        ctx.lineTo(
+          c.x + Math.cos(ang) * c.len * f + jx,
+          c.y + Math.sin(ang) * c.len * f + jy
+        );
       }
       ctx.stroke();
-      ctx.shadowBlur = 0;
-      // 先端の光点
-      ctx.fillStyle = "rgba(255,230,255,0.9)";
       ctx.beginPath();
       ctx.arc(c.x, c.y, 2.2, 0, Math.PI * 2);
       ctx.fill();
@@ -5458,6 +6746,9 @@
   function updateVoidReveal() {
     const vr = voidReveal;
     vr.t++;
+    if (vr.phase !== "flash" && vr.phase !== "boom" && vr.flash > 0) {
+      vr.flash = Math.max(0, vr.flash - 0.05);
+    }
     if (vr.phase === "idle") {
       if (vr.t > 100) {
         vr.phase = "flash";
@@ -5517,8 +6808,14 @@
       if (vr.t === 1) {
         try { stopAllVoidAudio(); } catch (_) {}
       }
-      if (vr.t > 110) {
-        showSpaceResult(true);
+      // 大爆発 → 破片消滅 → 1.5秒待ち → 暗転 → CLEAR
+      if (voidShrapnel.length || voidRageGas.length) {
+        vr.boomHold = 90;
+      } else if ((vr.boomHold || 0) > 0) {
+        vr.boomHold--;
+      } else {
+        vr.clearFade = Math.min(1, (vr.clearFade || 0) + 0.035);
+        if (vr.clearFade >= 1) showSpaceResult(true);
       }
       return;
     }
@@ -5529,20 +6826,16 @@
       if (vr.t > 60 && vr.t % 180 === 0) {
         try { sfxVoidThunder(); } catch (_) {}
       }
-      // 徘徊のみ（第一遭遇は突進しない）
+      // 第一遭遇：位置固定。大きさだけゆっくり変化
       vr.moveT++;
-      vr.targetCx = 0.5 + Math.sin(vr.moveT * 0.011) * 0.16 + Math.sin(vr.moveT * 0.007) * 0.04;
-      vr.targetCy = 0.26 + Math.cos(vr.moveT * 0.009) * 0.07 + Math.sin(vr.moveT * 0.013) * 0.03;
-      vr.targetCx = Math.max(0.30, Math.min(0.70, vr.targetCx));
-      vr.targetCy = Math.max(0.18, Math.min(0.38, vr.targetCy));
-      vr.scale += (vr.targetScale - vr.scale) * 0.04;
-      vr.cx += (vr.targetCx - vr.cx) * 0.02;
-      vr.cy += (vr.targetCy - vr.cy) * 0.02;
+      pinVoidFrontPos(vr);
+      vr.targetScale = 0.7 + (0.5 + 0.5 * Math.sin(vr.moveT * 0.009)) * 0.28;
+      vr.scale += (vr.targetScale - vr.scale) * 0.016;
       if (vr.shotsFired >= 5) {
         vr.phase = "aggro";
         vr.t = 0;
-        vr.targetScale = 2.35;
-        vr.targetCy = 0.30;
+        vr.targetScale = 1.15;
+        vr.targetCy = 0.26;
         vr.hpVisible = true; // VOID＋UNIT 両ゲージ出現＝FIGHT開始
         toast = "FIGHT — VOID激怒・拡大";
         toastT = 120;
@@ -5554,22 +6847,21 @@
       return;
     }
     if (vr.phase === "aggro") {
-      updateVoidCoreMotion(vr, 0.18, 0.08, 0.30, 0.025);
-      vr.scale += (vr.targetScale - vr.scale) * 0.03;
-      if (vr.t === 30) {
-        // 地球指令室の電波
-        vr.radioT = 90;
-        try { sfxRadioSignal(); } catch (_) {}
-        toast = "指令室より電波信号";
-        toastT = 90;
+      if (voidFrontShouldHold(vr)) {
+        vr.moveT++;
+        pinVoidFrontPos(vr);
+      } else {
+        updateVoidCoreMotion(vr, 0.18, 0.08, 0.30, 0.02);
       }
-      if (vr.t === 70) {
+      vr.targetScale = 1.05 + (0.5 + 0.5 * Math.sin(vr.moveT * 0.0085)) * 0.4;
+      vr.scale += (vr.targetScale - vr.scale) * 0.012;
+      if (vr.t === 8) {
         // スターリンク4体を下から出現（均等4角）
         const cx = player.x + player.w / 2;
         const angles = [0, 1, 2, 3].map((i) => (i / 4) * Math.PI * 2 + Math.PI / 4);
         vr.escorts = angles.map((a, i) => ({
           x: cx + Math.cos(a) * 8,
-          y: H + 40 + i * 20,
+          y: H + 16 + i * 8,
           ang: a,
           arrived: false,
           hits: 0,
@@ -5577,15 +6869,18 @@
           blinkT: 0,
         }));
         toast = "スターリンク展開";
-        toastT = 100;
+        toastT = 70;
       }
-      // エスコート：リング上に密着（到着前は下から接近、到着後はズレない）
-      updateVoidEscortRing(vr, { arrive: true, orbit: false });
-      // レーザー切替：スターリンク4体が囲み、リングがほぼ完成してから
+      updateVoidEscortRing(vr, { arrive: true, orbit: false, arriveSp: 0.22 });
+      if (vr.escorts.length && vr.escorts.some((e) => e.arrived)) {
+        vr.ringAlpha = Math.min(1, vr.ringAlpha + 0.07);
+      }
+      // レーザー切替：スターリンク到着後すぐ。電波タイミングは変えない
       if (
+        vr.t >= 32 &&
         vr.escorts.length === 4 &&
         vr.escorts.every((e) => e.arrived) &&
-        vr.ringAlpha >= 0.98
+        vr.ringAlpha >= 0.85
       ) {
         vr.phase = "linked";
         vr.t = 0;
@@ -5599,9 +6894,27 @@
     }
     if (vr.phase === "linked") {
       if (!voidDroneNodes) { try { startVoidDrone(); } catch (_) {} }
-      // 縦横無尽＋自機ブースターへ突進
-      updateVoidCoreMotion(vr, 0.22, 0.12, 0.28, 0.02);
-      vr.scale += (vr.targetScale - vr.scale) * 0.05;
+      // 縦横無尽＋自機ブースターへ突進（後半は暴れ強化。枠ははみ出さない）
+      if (vr.form === "back") {
+        if (vr.warpCd > 0 && !vr.warpStage) vr.warpCd--;
+        if (!vr.warpStage && vr.warpCd <= 0) beginVoidWarp(vr);
+        if (!updateVoidWarp(vr)) {
+          vr.moveT++;
+          vr.chargeT = 0;
+          vr.cx = Math.max(0.22, Math.min(0.78, vr.cx));
+          vr.cy = Math.max(0.14, Math.min(0.55, vr.cy));
+        }
+        vr.scale += (vr.targetScale - vr.scale) * 0.04;
+      } else {
+        if (voidFrontShouldHold(vr)) {
+          vr.moveT++;
+          pinVoidFrontPos(vr);
+        } else {
+          updateVoidCoreMotion(vr, 0.22, 0.12, 0.28, 0.02);
+        }
+        vr.targetScale = 1.08 + (0.5 + 0.5 * Math.sin(vr.moveT * 0.0075)) * 0.42;
+        vr.scale += (vr.targetScale - vr.scale) * 0.01;
+      }
       const anyAlive = vr.escorts.some((e) => e.alive);
       if (anyAlive) vr.ringAlpha = Math.min(1, vr.ringAlpha + 0.02);
       else vr.ringAlpha = Math.max(0, vr.ringAlpha - 0.03);
@@ -5611,22 +6924,6 @@
       // たまに稲妻
       if (vr.t % 200 === 40) {
         try { sfxVoidThunder(); } catch (_) {}
-      }
-      // HP半分以下：クラック全方向攻撃＋重力攻撃（超重低音・最前線縛り）
-      if (vr.hp <= (vr.hpMax || 100) * 0.5 && vr.hp > 0) {
-        if (vr.t % 120 === 1) {
-          toast = "VOID CRACK — 無差別攻撃";
-          toastT = 50;
-        }
-        // 重力攻撃：物理弾なし。音＋後退不可
-        if (voidGravityCd > 0) voidGravityCd--;
-        if (voidGravityCd <= 0 && voidGravityT <= 0) {
-          voidGravityCd = 240; // 約4秒間隔
-          voidGravityT = 120;  // 約2秒：じわじわ前方＋左右のみ
-          toast = "GRAVITY WELL — 最前線拘束";
-          toastT = 55;
-          try { sfxVoidGravity(); } catch (_) {}
-        }
       }
       return;
     }
@@ -5640,13 +6937,19 @@
     const cy = H * vr.cy;
     const sc = vr.scale;
 
-    // 閃光
+    // 閃光（赤化前触れは紫白／赤白）
     if (vr.flash > 0.02) {
       const fr = 18 + (1 - vr.flash) * 80;
       const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, fr);
-      g.addColorStop(0, `rgba(220,200,255,${0.85 * vr.flash})`);
-      g.addColorStop(0.3, `rgba(160,80,255,${0.45 * vr.flash})`);
-      g.addColorStop(1, "rgba(40,0,80,0)");
+      const rageF = vr.rage || 0;
+      g.addColorStop(0, `rgba(255,255,255,${0.92 * vr.flash})`);
+      if (rageF > 0.5) {
+        g.addColorStop(0.28, `rgba(255,110,90,${0.55 * vr.flash})`);
+        g.addColorStop(1, "rgba(80,0,10,0)");
+      } else {
+        g.addColorStop(0.28, `rgba(210,180,255,${0.55 * vr.flash})`);
+        g.addColorStop(1, "rgba(40,0,80,0)");
+      }
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.arc(cx, cy, fr, 0, Math.PI * 2);
@@ -5655,7 +6958,7 @@
     // 宇宙ガス
     if (vr.gasAlpha > 0.01) {
       const R = Math.min(W, H) * 0.22 * vr.gasScale;
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 3; i++) {
         const ang = i * 1.3 + t * 0.008;
         const dist = R * (0.15 + i * 0.12);
         const gx = cx + Math.cos(ang) * dist * 0.4;
@@ -5682,9 +6985,10 @@
     }
     // VOIDコア — コンセプト忠実：ガスコア＋円リング＋うねる惑星群ネットワーク
     if (vr.coreAlpha > 0.02) {
-      const pulse = 1 + Math.sin(t * 0.04) * 0.03;
+      const pulse = 1 + Math.sin(t * 0.04) * 0.03 * (vr.warpGrain > 0.15 ? 0.15 : 1);
       const cr = 14 * pulse * sc;
-      const a0 = vr.coreAlpha;
+      const grain = vr.warpGrain || 0;
+      const a0 = Math.max(0.26, vr.coreAlpha * (1 - grain * 0.62));
       const rage = vr.rage || 0;
       ctx.save();
       if (rage > 0.02) {
@@ -5714,12 +7018,12 @@
         ctx.translate(cx, cy);
         ctx.rotate(spin);
         ctx.globalAlpha = a0;
-        for (let b = 0; b < 7; b++) {
-          const y0 = (b - 3) * swirlR * 0.22;
+        for (let b = 0; b < 4; b++) {
+          const y0 = (b - 1.5) * swirlR * 0.32;
           const wob = Math.sin(spin * 1.7 + b * 0.9) * swirlR * 0.06;
           ctx.beginPath();
           ctx.moveTo(-swirlR, y0);
-          for (let x = -swirlR; x <= swirlR; x += swirlR * 0.12) {
+          for (let x = -swirlR; x <= swirlR; x += swirlR * 0.22) {
             const nx = x / swirlR;
             const y =
               y0 +
@@ -5742,7 +7046,7 @@
           const py = pole === 0 ? -swirlR * 0.62 : swirlR * 0.62;
           const dir = pole === 0 ? 1 : -1;
           ctx.beginPath();
-          for (let s = 0; s < 18; s++) {
+          for (let s = 0; s < 10; s++) {
             const ang = dir * (s * 0.55 + spin * 3);
             const rad = swirlR * (0.04 + s * 0.018);
             const px = Math.cos(ang) * rad;
@@ -5769,10 +7073,8 @@
       ctx.globalAlpha = a0 * 0.48;
       const ringDefs = [
         { rx: 36, ry: 16, rot: 0.15, w: 1.3 },
-        { rx: 48, ry: 22, rot: 0.9, w: 1.1 },
         { rx: 58, ry: 28, rot: -0.4, w: 1.0 },
         { rx: 70, ry: 32, rot: 1.3, w: 0.9 },
-        { rx: 42, ry: 40, rot: 0.6, w: 0.85 },
         { rx: 78, ry: 36, rot: -1.0, w: 0.8 },
       ];
       for (let i = 0; i < ringDefs.length; i++) {
@@ -5804,8 +7106,8 @@
       ctx.globalAlpha = a0 * 0.55;
       ctx.strokeStyle = "rgba(160,100,220,0.45)";
       ctx.lineWidth = 1;
-      for (let i = 0; i < positions.length; i++) {
-        for (let j = i + 1; j < positions.length; j++) {
+      for (let i = 0; i < positions.length; i += 2) {
+        for (let j = i + 1; j < positions.length; j += 2) {
           const dx = positions[i].x - positions[j].x;
           const dy = positions[i].y - positions[j].y;
           const d2 = dx * dx + dy * dy;
@@ -5864,8 +7166,9 @@
       }
       ctx.restore();
 
-      // 4) 中心コア（弱点）— 明るい核＋クラック
-      const kg = ctx.createRadialGradient(cx - 2 * sc, cy - 2 * sc, 0, cx, cy, cr * 2.4);
+      // 4) 中心コア（弱点）— 明るい核＋クラック（コア体のみ肥大）
+      const coreMul = voidCoreGrowMul();
+      const kg = ctx.createRadialGradient(cx - 2 * sc, cy - 2 * sc, 0, cx, cy, cr * 2.4 * coreMul);
       kg.addColorStop(0, `rgba(255,255,255,${a0})`);
       kg.addColorStop(0.2, `rgba(240,210,255,${a0})`);
       kg.addColorStop(0.45, `rgba(180,100,255,${a0})`);
@@ -5873,11 +7176,11 @@
       kg.addColorStop(1, "rgba(15,0,30,0)");
       ctx.fillStyle = kg;
       ctx.beginPath();
-      ctx.arc(cx, cy, cr * 2.4, 0, Math.PI * 2);
+      ctx.arc(cx, cy, cr * 2.4 * coreMul, 0, Math.PI * 2);
       ctx.fill();
       // コア円内：薄い木星風大気バンド（見た目のみ）
       {
-        const coreR = cr * 2.4;
+        const coreR = cr * 2.4 * coreMul;
         const spin = t * 0.0026;
         ctx.save();
         ctx.beginPath();
@@ -5885,12 +7188,12 @@
         ctx.clip();
         ctx.translate(cx, cy);
         ctx.rotate(spin * 0.35);
-        for (let b = 0; b < 9; b++) {
-          const y0 = (b - 4) * coreR * 0.2;
+        for (let b = 0; b < 5; b++) {
+          const y0 = (b - 2) * coreR * 0.28;
           const drift = Math.sin(spin * 1.4 + b * 0.85) * coreR * 0.035;
           ctx.beginPath();
           ctx.moveTo(-coreR, y0);
-          for (let x = -coreR; x <= coreR; x += coreR * 0.1) {
+          for (let x = -coreR; x <= coreR; x += coreR * 0.2) {
             const nx = x / coreR;
             const y =
               y0 +
@@ -5912,7 +7215,7 @@
       }
       // 白熱点：星としての薄い木星模様＋脈動（見た目のみ）
       {
-        const hotR = cr * 0.42;
+        const hotR = cr * 0.42 * coreMul;
         const breath = 0.5 + 0.5 * Math.sin(t * 0.024);
         const breath2 = 0.5 + 0.5 * Math.sin(t * 0.013 + 1.1);
         ctx.fillStyle = `rgba(255,250,255,${a0 * (0.9 + 0.1 * breath)})`;
@@ -5925,13 +7228,13 @@
         ctx.clip();
         ctx.translate(cx, cy);
         ctx.rotate(t * 0.0009);
-        for (let b = 0; b < 5; b++) {
+        for (let b = 0; b < 3; b++) {
           const dir = b % 2 === 0 ? 1 : -1;
-          const y0 = (b - 2) * hotR * 0.32;
+          const y0 = (b - 1) * hotR * 0.4;
           const drift = Math.sin(t * 0.01 * dir + b * 0.95) * hotR * 0.07;
           ctx.beginPath();
           ctx.moveTo(-hotR, y0);
-          for (let x = -hotR; x <= hotR; x += hotR * 0.12) {
+          for (let x = -hotR; x <= hotR; x += hotR * 0.22) {
             const nx = x / hotR;
             const y =
               y0 +
@@ -5972,8 +7275,8 @@
       // クラック：断続スパーク（固定髭にしない／同時に何本も出さない）
       {
         const timeSec = t / 60;
-        const slots = 8;
-        const maxLen = cr * 2.2;
+        const slots = 5;
+        const maxLen = cr * 2.2 * coreMul;
         ctx.save();
         ctx.globalAlpha = a0;
         ctx.lineCap = "round";
@@ -5987,7 +7290,7 @@
           const baseAng = (i / slots) * Math.PI * 2 + Math.sin(i * 2.1) * 0.15;
           const head = Math.min(1, progress * 1.2);
           const tail = Math.max(0, head - 0.4);
-          const segs = 4;
+          const segs = 2;
           const jag = cr * 0.08;
           // グロー
           ctx.beginPath();
@@ -6026,6 +7329,7 @@
         }
         ctx.restore();
       }
+      drawVoidWarpGrain(cx, cy, cr, vr.warpGrain || 0);
       ctx.restore();
     }
 
@@ -6072,8 +7376,8 @@
         ctx.beginPath();
         ctx.arc(rcx, rcy, R, 0, Math.PI * 2);
         ctx.stroke();
-        for (let i = 0; i < 16; i++) {
-          const a = (i / 16) * Math.PI * 2 + t * 0.02;
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2 + t * 0.02;
           ctx.fillStyle = "rgba(180,240,255,0.9)";
           ctx.beginPath();
           ctx.arc(rcx + Math.cos(a) * R, rcy + Math.sin(a) * R, 2.2, 0, Math.PI * 2);
@@ -6108,17 +7412,18 @@
       ctx.save();
       ctx.globalAlpha = a;
       // 扇状・同心円弧（右上方向へ）
-      const maxR = 120 + (90 - vr.radioT) * 1.2;
+      const maxR = earthRadioMaxR();
       const rings = 6;
       for (let i = 0; i < rings; i++) {
         const prog = (i / rings + (t * 0.015)) % 1;
         const r = 20 + prog * maxR;
+        const near = 1 - Math.min(1, r / 240);
+        const extra = near * 0.62;
         const alpha = (1 - prog) * a * 0.85;
         ctx.strokeStyle = `rgba(100, 220, 150, ${alpha})`;
         ctx.lineWidth = 1.5 + (1 - prog) * 1.2;
         ctx.beginPath();
-        // 地球から右上へ扇形（約 -20°〜 -70°）
-        ctx.arc(ex, ey, r, -Math.PI * 0.42, -Math.PI * 0.08, false);
+        ctx.arc(ex, ey, r, -Math.PI * 0.42 - extra, -Math.PI * 0.08 + extra * 0.4, false);
         ctx.stroke();
       }
       // 短い放射ガイド線
@@ -6136,28 +7441,6 @@
       ctx.font = "11px 'Segoe UI', Meiryo, sans-serif";
       ctx.textAlign = "left";
       ctx.fillText("地球指令室 信号送信", 70, H - 36);
-      ctx.restore();
-    }
-
-    // お助けアイテム
-    for (const a of spaceAssists) {
-      const yy = a.y + Math.sin(a.bob) * 3;
-      ctx.save();
-      ctx.translate(a.x, yy);
-      const fade = a.life < 45 ? Math.max(0, a.life / 45) : 1;
-      // きらきら
-      ctx.globalAlpha = (0.35 + Math.sin(a.bob * 2) * 0.15) * fade;
-      ctx.fillStyle = a.kind === "repair" ? "#7ec850" : (a.kind === "shield" ? "#60c0e0" : "#e0c040");
-      ctx.beginPath();
-      ctx.arc(0, 0, 14, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = fade;
-      ctx.fillStyle = "#fff";
-      ctx.font = "bold 11px 'Segoe UI', Meiryo, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      const icon = a.kind === "repair" ? "🔧" : (a.kind === "shield" ? "🛡" : "⚡");
-      ctx.fillText(icon, 0, 1);
       ctx.restore();
     }
 
@@ -6329,25 +7612,16 @@
 
     // VOID出現：奥の宇宙ガス → 晴れ → コア
     drawVoidReveal();
+    drawVoidRageGas();
     drawVoidCracks();
     drawVoidShrapnel();
 
-    // 弾 / レーザー
+    // 弾（輪が出る前）／グラディウス型レーザー（輪のあと）
     for (const b of bullets) {
-      if (b.kind === "laser") {
-        const g = ctx.createLinearGradient(b.x, b.y + b.h, b.x, b.y);
-        g.addColorStop(0, "rgba(120,220,255,0.15)");
-        g.addColorStop(0.4, "rgba(160,240,255,0.95)");
-        g.addColorStop(1, "rgba(255,255,255,0.9)");
-        ctx.fillStyle = g;
-        ctx.fillRect(b.x, b.y, b.w, b.h);
-        ctx.fillStyle = "rgba(200,250,255,0.5)";
-        ctx.fillRect(b.x - 1, b.y, b.w + 2, 4);
-      } else {
-        ctx.fillStyle = "#a0e8ff";
-        ctx.fillRect(b.x, b.y, b.w, b.h);
-      }
+      ctx.fillStyle = "#a0e8ff";
+      ctx.fillRect(b.x, b.y, b.w, b.h);
     }
+    drawSpaceBeams();
 
     // ブースターX（スターリンクなし）
     const sx = player.x;
@@ -6433,11 +7707,22 @@
           ? "THE VOID — 第一遭遇"
           : "VOID Phase1 — 地球＋ブースターX";
     ctx.fillText(hudLabel, 12, 22);
+    ctx.textAlign = "right";
+    ctx.fillText("SCORE " + score, W - 12, 22);
     if (toastT > 0 && toast) {
       ctx.textAlign = "center";
       ctx.fillStyle = "rgba(200,240,255,0.9)";
       ctx.font = "bold 14px 'Segoe UI', Meiryo, sans-serif";
       ctx.fillText(toast, W / 2, 48);
+    }
+    const fade = voidReveal.clearFade || 0;
+    if (fade > 0.01) {
+      ctx.fillStyle = `rgba(0,0,0,${Math.min(1, fade)})`;
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = "rgba(180,220,255,0.85)";
+      ctx.font = "12px 'Segoe UI', Meiryo, sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText("SCORE " + score, W - 12, 22);
     }
   }
 
@@ -6513,14 +7798,14 @@
       }
       const dmg = b.dmg || 1;
 
-      if (ufo && hitRect(b, ufo)) {
+      if (ufo && hitPlayerShot(b, ufo)) {
         bullets.splice(i, 1);
         ufo.hp -= dmg;
         burst(b.x, b.y, "#e0c060", 5);
         if (ufo.hp <= 0) destroyUfo();
         continue;
       }
-      if (giantSmog && hitRect(b, giantSmog)) {
+      if (giantSmog && hitPlayerShot(b, giantSmog)) {
         bullets.splice(i, 1);
         giantSmog.hp -= dmg;
         burst(b.x, b.y, "#b0b0c8", 5);
@@ -6529,7 +7814,7 @@
       }
       for (let j = enemies.length - 1; j >= 0; j--) {
         const e = enemies[j];
-        if (!hitRect(b, e)) continue;
+        if (!hitPlayerShot(b, e)) continue;
         bullets.splice(i, 1);
         e.hp -= dmg;
         burst(e.x + e.w / 2, e.y + e.h / 2, ETYPES[e.type].color, 4);
@@ -6540,6 +7825,7 @@
 
     updateBossTimers();
     updateDisasters();
+    syncPlayerShotRank();
     if (mode !== "play") return;
 
     let hitEdge = false;
@@ -6651,7 +7937,7 @@
 
       if (b.y + b.h >= GROUND_Y) {
         enemyBullets.splice(i, 1);
-        applyGroundHit();
+        if (!(isGreenMax() && b.kind === "mini")) applyGroundHit();
         burst(b.x + b.w / 2, GROUND_Y, b.kind === "mini" ? "#c060a0" : "#886644", 6);
         continue;
       }
@@ -6700,6 +7986,15 @@
     }
   }
 
+  function setResultScoreDisplay() {
+    const t = "SCORE " + (score | 0);
+    const ids = ["end-score-overlay", "space-result-score", "ground-ending-score"];
+    for (let i = 0; i < ids.length; i++) {
+      const el = document.getElementById(ids[i]);
+      if (el) el.textContent = t;
+    }
+  }
+
   function gameOver(win) {
     if (spaceMode || mode === "space") {
       showSpaceResult(!!win);
@@ -6709,6 +8004,8 @@
     paused = false;
     try { stopAllVoidAudio(); } catch (_) {}
     stopWaitBgm();
+    stopHowtoOverture();
+    stopOpeningBgm();
     hideEmergency();
     hideNewMission();
     hideDock();
@@ -6716,6 +8013,7 @@
 
     endTitle.textContent = win ? "防衛成功" : "防衛失敗 / YOU LOSE";
     endTitle.style.color = win ? "#8fd060" : "#d08060";
+    setResultScoreDisplay();
     const diffTag =
       difficulty === "easy" ? "EASY" :
       difficulty === "hard" ? "HARD" :
@@ -6737,6 +8035,7 @@
     const applyPoster = () => {
       endPoster.src = targetSrc;
       endPoster.classList.add("show");
+      if (win) sfxClearPororon();
       if (!win) {
         if (endFrame) endFrame.classList.add("fail");
         endPoster.classList.add("fail");
@@ -6762,7 +8061,6 @@
         endHint.style.display = "none";
         endHint.textContent = "";
       }
-      sfxWin();
     } else {
       endMsg.textContent = "まだ終わらない。草の根から、もう一度。";
       if (endHint) {
@@ -7080,26 +8378,26 @@
       });
     }
     } // end if (!_landRocks)
-    // 都市サイト（奥3＋手前2）。unlockAt で順に芽生え、成長は永続ピーク知恵
-    // 旧フォーマットは捨てて再生成
-    if (_landTowns && (_landTowns.length !== 5 || _landTowns[0].unlockAt == null)) {
+    // 都市サイト：奥中央→奥左→奥右→手前左→手前右。unlockAt で順に芽生え
+    if (_landTowns && (_landTowns.length !== 5 || _landTowns[0].layout !== "bc1")) {
       _landTowns = null;
     }
     if (!_landTowns) {
       const townSlots = [
-        { cxFrac: 0.2, depth01: 0.16, unlockAt: 0 },
-        { cxFrac: 0.55, depth01: 0.26, unlockAt: 3 },
-        { cxFrac: 0.82, depth01: 0.2, unlockAt: 5 },
-        // 手前寄り（プレイ床直上は避ける）
-        { cxFrac: 0.32, depth01: 0.52, unlockAt: 8 },
-        { cxFrac: 0.7, depth01: 0.58, unlockAt: 11 },
+        { cxFrac: 0.50, depth01: 0.17, unlockAt: 0 },
+        { cxFrac: 0.22, depth01: 0.20, unlockAt: 3 },
+        { cxFrac: 0.78, depth01: 0.20, unlockAt: 5 },
+        { cxFrac: 0.30, depth01: 0.54, unlockAt: 8 },
+        { cxFrac: 0.72, depth01: 0.56, unlockAt: 11 },
       ];
       _landTowns = [];
       for (let ti = 0; ti < townSlots.length; ti++) {
         const slot = townSlots[ti];
         const h0 = landHash(ti, 60);
+        const jitter = ti === 0 ? (h0 - 0.5) * 6 : (h0 - 0.5) * 12;
         _landTowns.push({
-          cx: slot.cxFrac * W + (h0 - 0.5) * 14,
+          layout: "bc1",
+          cx: slot.cxFrac * W + jitter,
           cy: farY + depth * slot.depth01,
           depth01: slot.depth01,
           seed: ti * 17 + 3,
@@ -9926,10 +11224,15 @@
   function drawBullets() {
     // 自機：直線の緑弾
     for (const b of bullets) {
+      const big = !!b.wShot;
+      const dw = big ? b.w + 2 : b.w;
+      const dh = big ? b.h + 2 : b.h;
+      const dx = b.x - (dw - b.w) / 2;
+      const dy = b.y - (dh - b.h) / 2;
       ctx.fillStyle = (b.dmg || 1) >= 2 ? "#e0f080" : "#a0e860";
-      ctx.fillRect(b.x, b.y, b.w, b.h);
+      ctx.fillRect(dx, dy, dw, dh);
       ctx.fillStyle = "rgba(200, 255, 160, 0.5)";
-      ctx.fillRect(b.x, b.y + b.h, b.w, 4);
+      ctx.fillRect(dx, dy + dh, dw, 4);
     }
 
     for (const b of enemyBullets) {
@@ -10717,6 +12020,7 @@
   }
 
   function hideSpaceResult() {
+    try { stopVoidEndingSfx(); } catch (_) {}
     if (spaceResultEl) spaceResultEl.classList.add("hidden");
   }
 
@@ -10730,8 +12034,11 @@
     mode = win ? "space-clear" : "space-over";
     paused = false;
     try { stopAllVoidAudio(); } catch (_) {}
+    try { stopVoidGravityHum(); } catch (_) {}
+    voidGravityT = 0;
     stopWaitBgm();
     stopOpeningBgm();
+    stopHowtoOverture();
     hideEmergency();
     hideNewMission();
     hideDock();
@@ -10752,9 +12059,10 @@
         ? "<kbd>Enter</kbd> でタイトルへ"
         : "<kbd>Enter</kbd> でもう一度";
     }
+    setResultScoreDisplay();
     if (spaceResultEl) spaceResultEl.classList.remove("hidden");
-    if (win) sfxWin();
-    else sfxLose();
+    if (win && src === "lastclear.png") playClearEndingSfx("void");
+    else if (!win) sfxLose();
   }
 
   function leaveSpaceResultToTitle() {
@@ -10763,6 +12071,7 @@
     if (actx && actx.state === "suspended") {
       try { actx.resume(); } catch (_) {}
     }
+    try { stopVoidEndingSfx(); } catch (_) {}
     try { sfxConfirm(); } catch (_) {}
     hideSpaceResult();
     try { leaveSpaceStage(); } catch (_) {}
@@ -10779,6 +12088,7 @@
   }
 
   function hideGroundEnding() {
+    try { stopGroundEndingSfx(); } catch (_) {}
     if (groundEndingEl) groundEndingEl.classList.add("hidden");
   }
 
@@ -10790,9 +12100,14 @@
     if (actx && actx.state === "suspended") {
       try { actx.resume(); } catch (_) {}
     }
-    try { sfxConfirm(); } catch (_) {}
     stopWaitBgm();
     stopOpeningBgm();
+    stopHowtoOverture();
+    try { stopAllVoidAudio(); } catch (_) {}
+    if (groundEndingImg) groundEndingImg.src = "life_tower_ending.png";
+    setResultScoreDisplay();
+    if (groundEndingEl) groundEndingEl.classList.remove("hidden");
+    playGroundNatureEnding();
     endEl.classList.add("hidden");
     endPoster.classList.remove("show", "fail");
     if (endFrame) endFrame.classList.remove("fail");
@@ -10804,8 +12119,6 @@
     if (howtoEl) howtoEl.classList.add("hidden");
     titleEl.classList.add("hidden");
     openingEl.classList.add("hidden");
-    if (groundEndingImg) groundEndingImg.src = "life_tower_ending.png";
-    if (groundEndingEl) groundEndingEl.classList.remove("hidden");
   }
 
   /** 地上編エンディング → ゲーム開始前のタイトル（アクセス）画面 */
@@ -10815,6 +12128,7 @@
     if (actx && actx.state === "suspended") {
       try { actx.resume(); } catch (_) {}
     }
+    try { stopGroundEndingSfx(); } catch (_) {}
     try { sfxConfirm(); } catch (_) {}
     hideGroundEnding();
     hideVoidEnd();
@@ -11555,7 +12869,7 @@
     // 説明画面：点滅「ゲームスタート」（文言は HTML 側）
     const hs = document.getElementById("howto-start");
     if (hs) hs.textContent = "ゲームスタート";
-    startWaitBgm(); // 説明画面：ピロン…ピロン
+    startHowtoOverture();
   }
 
   /**
@@ -11606,6 +12920,7 @@
     if (actx && actx.state === "suspended") actx.resume();
     stopWaitBgm();
     stopOpeningBgm();
+    stopHowtoOverture();
     try { stopAllVoidAudio(); } catch (_) {}
     paused = false;
     // 防衛開始 → タタタン♪（表示なし）→ ゲーム開始

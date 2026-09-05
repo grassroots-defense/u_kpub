@@ -1,4 +1,4 @@
-# Grassroots Defense ver.5.0
+# Grassroots Defense ver.5.1
 
 最終公開前とりあえずUP版（未だ未完です。）宇宙編VOIDボス追加済み。説明書き・バランスはこれから詰める。
 
